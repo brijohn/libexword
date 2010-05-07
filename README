@@ -1,0 +1,28 @@
+Description
+=========================
+
+libexword is a piece of software to allow the transfering of
+files over USB to casio EX-word Japanese-English dictionaries.
+
+Components:
+	libexword - library
+	exword -    program
+
+
+Usage
+==========================
+
+exword [OPTION...]
+      --sd                access external sd card
+      --internal          access internal memory (default)
+      --list              list files on device
+      --model             get device model
+      --capacity          get device capacity
+      --scan              scan system for device ids
+      --device=STRING     usb device (eg 0c7f:6101)
+      --debug=INT         debug level (0..5)
+
+Help options:
+  -?, --help              Show this help message
+      --usage             Display brief usage message
+
