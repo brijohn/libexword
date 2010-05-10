@@ -21,6 +21,10 @@
 
 #include <popt.h>
 #include <stdlib.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
+#include <string.h>
 #include "exword.h"
 
 #define CMD_NONE	0x0
@@ -37,7 +41,7 @@ uint8_t  debug_level;
 uint16_t command;
 uint8_t  do_scan;
 char    *usb_device;
-char    *file;
+char    *filename;
 
 
 
@@ -48,12 +52,18 @@ struct poptOption options[] = {
         "access internal memory (default)" },
         { "list", 0, POPT_BIT_SET, &command, CMD_LIST,
         "list files on device" },
+        { "send", 0, POPT_BIT_SET, &command, CMD_SEND,
+        "send file to device" },
+        { "delete", 0, POPT_BIT_SET, &command, CMD_DELETE,
+        "delete file from device" },
         { "model", 0, POPT_BIT_SET, &command, CMD_MODEL,
         "get device model" },
         { "capacity", 0, POPT_BIT_SET, &command, CMD_CAPACITY,
         "get device capacity" },
         { "scan", 0, 0, &do_scan, 1,
         "scan system for device ids" },
+        { "file", 0, POPT_ARG_STRING, &filename, 0,
+        "file name to transfer/delete" },
         { "device", 0, POPT_ARG_STRING, &usb_device, 0,
         "usb device (eg 0c7f:6101)" },
         { "debug", 0, POPT_ARG_INT, &debug_level, 0,
@@ -67,6 +77,36 @@ void usage(poptContext optCon, int exitcode, char *error) {
     poptPrintUsage(optCon, stderr, 0);
     if (error) fprintf(stderr, "%s\n", error);
     exit(exitcode);
+}
+
+int read_file(char* filename, char **buffer, int *len)
+{
+	int fd;
+	struct stat buf;
+	*buffer = NULL;
+	if (filename == NULL)
+		return 0x44;
+	fd = open(filename, O_RDONLY);
+	if (fd < 0)
+		return 0x44;
+	if (fstat(fd, &buf) < 0) {
+		close(fd);
+		return 0x44;
+	}
+	*buffer = malloc(buf.st_size);
+	if (*buffer == NULL) {
+		close(fd);
+		return 0x50;
+	}
+	*len = read(fd, *buffer, buf.st_size);
+	if (*len < 0) {
+		free(buffer);
+		*buffer = NULL;
+		close(fd);
+		return 0x50;
+	}
+	close(fd);
+	return 0x20;
 }
 
 int list_files(exword_t *d)
@@ -105,7 +145,6 @@ fail:
 int display_capacity(exword_t *d)
 {
 	int rsp;
-	int i;
 	exword_capacity_t cap;
 	rsp = exword_connect(d);
 	if (rsp != 0xA0)
@@ -129,6 +168,62 @@ int display_capacity(exword_t *d)
 	return 0;
 fail:
 		fprintf(stderr, "Failed operation (%d)\n", rsp);
+}
+
+int send_file(exword_t *d, char *filename)
+{
+	int rsp, len;
+	char *buffer;
+	rsp = read_file(filename, &buffer, &len);
+	if (rsp != 0x20)
+		goto fail;
+	rsp = exword_connect(d);
+	if (rsp != 0xA0)
+		goto fail;
+	if (command & DEV_SD)
+		rsp = exword_setpath(d, SD_CARD);
+	else
+		rsp = exword_setpath(d, INTERNAL_MEM);
+	if (rsp != 0xA0)
+		goto fail;
+	rsp = exword_send_file(d, basename(filename), buffer, len);
+	if (rsp != 0xA0)
+		goto fail;
+	rsp = exword_disconnect(d);
+	if (rsp != 0xA0)
+		goto fail;
+	free(buffer);
+	return 0x20;
+fail:
+	free(buffer);
+	fprintf(stderr, "Failed operation (%X)\n", rsp);
+	return rsp;
+}
+
+int delete_file(exword_t *d, char *filename)
+{
+	int rsp;
+	if (filename == NULL)
+		return 0x50;
+	rsp = exword_connect(d);
+	if (rsp != 0xA0)
+		goto fail;
+	if (command & DEV_SD)
+		rsp = exword_setpath(d, SD_CARD);
+	else
+		rsp = exword_setpath(d, INTERNAL_MEM);
+	if (rsp != 0xA0)
+		goto fail;
+	rsp = exword_remove_file(d, basename(filename));
+	if (rsp != 0xA0)
+		goto fail;
+	rsp = exword_disconnect(d);
+	if (rsp != 0xA0)
+		goto fail;
+	return 0;
+fail:
+	fprintf(stderr, "Failed operation (%X)\n", rsp);
+	return rsp;
 }
 
 int display_model(exword_t *d)
@@ -202,6 +297,12 @@ int main(int argc, const char** argv)
 				break;
 			case CMD_CAPACITY:
 				display_capacity(device);
+				break;
+			case CMD_SEND:
+				send_file(device, filename);
+				break;
+			case CMD_DELETE:
+				delete_file(device, filename);
 				break;
 			default:
 				usage(optCon, 1, "No such command");

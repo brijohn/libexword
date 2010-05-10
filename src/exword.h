@@ -59,6 +59,8 @@ exword_t * exword_open(exword_device_t *device);
 exword_t * exword_open_by_vid_pid(uint16_t vid, uint16_t pid);
 void exword_close(exword_t *self);
 int exword_connect(exword_t *self);
+int exword_send_file(exword_t *self, char* filename, char *buffer, int len);
+int exword_remove_file(exword_t *self, char* filename);
 int exword_get_model(exword_t *self, uint8_t * model, uint16_t *count);
 int exword_get_capacity(exword_t *self, exword_capacity_t *cap);
 int exword_setpath(exword_t *self, uint8_t *path);

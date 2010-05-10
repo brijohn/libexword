@@ -25,9 +25,15 @@
 #include "exword.h"
 
 int debug;
-const char Model[] = {0,'_',0,'M',0,'o',0,'d',0,'e',0,'l',0, 0};
-const char List[] = {0,'_',0,'L',0,'i',0,'s',0,'t',0, 0};
-const char Cap[] = {0,'_',0,'C',0,'a',0,'p',0, 0};
+const char Model[] = {0,'_',0,'M',0,'o',0,'d',0,'e',0,'l',0,0};
+const char List[] = {0,'_',0,'L',0,'i',0,'s',0,'t',0,0};
+const char Remove[] = {0,'_',0,'R',0,'e',0,'m',0,'o',0,'v',0,'e',0,0};
+const char Cap[] = {0,'_',0,'C',0,'a',0,'p',0,0};
+const char Unlock[] = {0,'_',0,'U',0,'n',0,'l',0,'o',0,'c',0,'k',0,0};
+const char Lock[] = {0,'_',0, 'L',0,'o',0,'c',0,'k',0,0};
+const char CName[] = {0,'_',0,'C',0,'N',0,'a',0,'m',0,'e',0,0};
+const char CryptKey[] = {0,'_',0,'C',0,'r',0,'y',0,'p',0,'t',0,'K',0,'e',0,'y',0,0};
+
 
 struct _exword {
 	obex_t *obex_ctx;
@@ -107,6 +113,50 @@ int exword_connect(exword_t *self)
 	obex_object_t *obj = obex_object_new(self->obex_ctx, OBEX_CMD_CONNECT);
 	if (obj == NULL)
 		return -1;
+	rsp = obex_request(self->obex_ctx, obj);
+	obex_object_delete(self->obex_ctx, obj);
+	return rsp;
+}
+
+int exword_send_file(exword_t *self, char* filename, char *file_data, int length)
+{
+	int len, rsp;
+	obex_headerdata_t hv;
+	uint8_t *unicode = malloc(strlen(filename) * 2 + 2);
+	if (unicode == NULL)
+		return -1;
+	obex_object_t *obj = obex_object_new(self->obex_ctx, OBEX_CMD_PUT);
+	if (obj == NULL) {
+		free(unicode);
+		return -1;
+	}
+	len = exword_char_to_unicode(unicode, filename);
+	hv.bs = unicode;
+	obex_object_addheader(self->obex_ctx, obj, OBEX_HDR_NAME, hv, len, 0);
+	hv.bq4 = len;
+	obex_object_addheader(self->obex_ctx, obj, OBEX_HDR_LENGTH, hv, 0, 0);
+	hv.bs = file_data;
+	obex_object_addheader(self->obex_ctx, obj, OBEX_HDR_BODY, hv, length, 0);
+	rsp = obex_request(self->obex_ctx, obj);
+	obex_object_delete(self->obex_ctx, obj);
+	free(unicode);
+	return rsp;
+}
+
+int exword_remove_file(exword_t *self, char* filename)
+{
+	int rsp, len;
+	obex_headerdata_t hv;
+	obex_object_t *obj = obex_object_new(self->obex_ctx, OBEX_CMD_PUT);
+	if (obj == NULL) {
+		return -1;
+	}
+	hv.bs = Remove;
+	obex_object_addheader(self->obex_ctx, obj, OBEX_HDR_NAME, hv, 16, 0);
+	hv.bq4 = len = strlen(filename) + 1;
+	obex_object_addheader(self->obex_ctx, obj, OBEX_HDR_LENGTH, hv, 0, 0);
+	hv.bs = filename;
+	obex_object_addheader(self->obex_ctx, obj, OBEX_HDR_BODY, hv, len, 0);
 	rsp = obex_request(self->obex_ctx, obj);
 	obex_object_delete(self->obex_ctx, obj);
 	return rsp;
