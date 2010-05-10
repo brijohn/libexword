@@ -1,4 +1,4 @@
-/* exword - program for transffering files to Casio-EX-Word dictionaries
+/* exword - program for transfering files to Casio-EX-Word dictionaries
  *
  * Copyright (C) 2010 - Brian Johnson <brijohn@gmail.com>
  *
@@ -115,16 +115,16 @@ int list_files(exword_t *d)
 	directory_entry_t *entries;
 	uint16_t len;
 	rsp = exword_connect(d);
-	if (rsp != 0xA0)
+	if (rsp != 0x20)
 		goto fail;
 	if (command & DEV_SD)
 		rsp = exword_setpath(d, SD_CARD);
 	else
 		rsp = exword_setpath(d, INTERNAL_MEM);
-	if (rsp != 0xA0)
+	if (rsp != 0x20)
 		goto fail;
 	rsp = exword_list(d, &entries, &len);
-	if (rsp != 0xA0)
+	if (rsp != 0x20)
 		goto fail;
 	for (i = 0; i < len; i++) {
 		if (entries[i].flags)
@@ -134,7 +134,7 @@ int list_files(exword_t *d)
 	}
 	free(entries);
 	rsp = exword_disconnect(d);
-	if (rsp != 0xA0)
+	if (rsp != 0x20)
 		goto fail;
 	return 0;
 fail:
@@ -147,19 +147,19 @@ int display_capacity(exword_t *d)
 	int rsp;
 	exword_capacity_t cap;
 	rsp = exword_connect(d);
-	if (rsp != 0xA0)
+	if (rsp != 0x20)
 		goto fail;
 	if (command & DEV_SD)
 		rsp = exword_setpath(d, SD_CARD);
 	else
 		rsp = exword_setpath(d, INTERNAL_MEM);
-	if (rsp != 0xA0)
+	if (rsp != 0x20)
 		goto fail;
 	rsp = exword_get_capacity(d, &cap);
-	if (rsp != 0xA0)
+	if (rsp != 0x20)
 		goto fail;
 	rsp = exword_disconnect(d);
-	if (rsp != 0xA0)
+	if (rsp != 0x20)
 		goto fail;
 	if (command & DEV_SD)
 		printf("SD Capacity: %d / %d\n", cap.total, cap.used);
@@ -179,19 +179,19 @@ int send_file(exword_t *d, char *filename)
 	if (rsp != 0x20)
 		goto fail;
 	rsp = exword_connect(d);
-	if (rsp != 0xA0)
+	if (rsp != 0x20)
 		goto fail;
 	if (command & DEV_SD)
 		rsp = exword_setpath(d, SD_CARD);
 	else
 		rsp = exword_setpath(d, INTERNAL_MEM);
-	if (rsp != 0xA0)
+	if (rsp != 0x20)
 		goto fail;
 	rsp = exword_send_file(d, basename(filename), buffer, len);
-	if (rsp != 0xA0)
+	if (rsp != 0x20)
 		goto fail;
 	rsp = exword_disconnect(d);
-	if (rsp != 0xA0)
+	if (rsp != 0x20)
 		goto fail;
 	free(buffer);
 	return 0x20;
@@ -207,19 +207,19 @@ int delete_file(exword_t *d, char *filename)
 	if (filename == NULL)
 		return 0x50;
 	rsp = exword_connect(d);
-	if (rsp != 0xA0)
+	if (rsp != 0x20)
 		goto fail;
 	if (command & DEV_SD)
 		rsp = exword_setpath(d, SD_CARD);
 	else
 		rsp = exword_setpath(d, INTERNAL_MEM);
-	if (rsp != 0xA0)
+	if (rsp != 0x20)
 		goto fail;
 	rsp = exword_remove_file(d, basename(filename));
-	if (rsp != 0xA0)
+	if (rsp != 0x20)
 		goto fail;
 	rsp = exword_disconnect(d);
-	if (rsp != 0xA0)
+	if (rsp != 0x20)
 		goto fail;
 	return 0;
 fail:
@@ -233,13 +233,13 @@ int display_model(exword_t *d)
 	uint16_t len = 30;
 	char model[30];
 	rsp = exword_connect(d);
-	if (rsp != 0xA0)
+	if (rsp != 0x20)
 		goto fail;
 	rsp = exword_get_model(d, model, &len);
-	if (rsp != 0xA0)
+	if (rsp != 0x20)
 		goto fail;
 	rsp = exword_disconnect(d);
-	if (rsp != 0xA0)
+	if (rsp != 0x20)
 		goto fail;
 	printf("Model: %s\n", model);
 	return 0;

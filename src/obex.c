@@ -778,11 +778,11 @@ int obex_object_set_nonhdr_data(obex_object_t *object, const uint8_t *buffer, un
 int obex_request(obex_t *self, obex_object_t *object)
 {
 	int ret, rsp;
-	ret = obex_object_send(self, object);
-	if (ret < 0)
-		return ret;
-	rsp = obex_object_receive(self, object);
-	if (rsp < 0)
-		return rsp;
-	return (ret == 0 ? rsp : rsp | OBEX_FINAL);
+	do {
+		ret = obex_object_send(self, object);
+		if (ret < 0)
+			return ret;
+		rsp = obex_object_receive(self, object);
+	} while (rsp == OBEX_RSP_CONTINUE);
+	return rsp;
 }
