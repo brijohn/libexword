@@ -134,11 +134,7 @@ int list_files(exword_t *d)
 	}
 	free(entries);
 	rsp = exword_disconnect(d);
-	if (rsp != 0x20)
-		goto fail;
-	return 0;
 fail:
-	fprintf(stderr, "Failed operation (%d)\n", rsp);
 	return rsp;
 }
 
@@ -165,9 +161,7 @@ int display_capacity(exword_t *d)
 		printf("SD Capacity: %d / %d\n", cap.total, cap.used);
 	else
 		printf("Internal Capacity: %d / %d\n", cap.total, cap.used);
-	return 0;
 fail:
-	fprintf(stderr, "Failed operation (%d)\n", rsp);
 	return rsp;
 }
 
@@ -191,13 +185,8 @@ int send_file(exword_t *d, char *filename)
 	if (rsp != 0x20)
 		goto fail;
 	rsp = exword_disconnect(d);
-	if (rsp != 0x20)
-		goto fail;
-	free(buffer);
-	return 0x20;
 fail:
 	free(buffer);
-	fprintf(stderr, "Failed operation (%X)\n", rsp);
 	return rsp;
 }
 
@@ -219,11 +208,7 @@ int delete_file(exword_t *d, char *filename)
 	if (rsp != 0x20)
 		goto fail;
 	rsp = exword_disconnect(d);
-	if (rsp != 0x20)
-		goto fail;
-	return 0;
 fail:
-	fprintf(stderr, "Failed operation (%X)\n", rsp);
 	return rsp;
 }
 
@@ -242,9 +227,7 @@ int display_model(exword_t *d)
 	if (rsp != 0x20)
 		goto fail;
 	printf("Model: %s\n", model);
-	return 0;
 fail:
-	fprintf(stderr, "Failed operation (%d)\n", rsp);
 	return rsp;
 }
 
@@ -273,6 +256,7 @@ int main(int argc, const char** argv)
 	poptContext optCon;
 	exword_t *device;
 	uint16_t vid, pid;
+	int rsp;
 	optCon = poptGetContext(NULL, argc, argv, options, 0);
 	poptGetNextOpt(optCon);
 	if ((command & DEV_SD) && (command & DEV_INTERNAL))
@@ -292,23 +276,24 @@ int main(int argc, const char** argv)
 		exword_set_debug(device, debug_level);
 		switch(command & CMD_MASK) {
 			case CMD_LIST:
-				list_files(device);
+				rsp = list_files(device);
 				break;
 			case CMD_MODEL:
-				display_model(device);
+				rsp = display_model(device);
 				break;
 			case CMD_CAPACITY:
-				display_capacity(device);
+				rsp = display_capacity(device);
 				break;
 			case CMD_SEND:
-				send_file(device, filename);
+				rsp = send_file(device, filename);
 				break;
 			case CMD_DELETE:
-				delete_file(device, filename);
+				rsp = delete_file(device, filename);
 				break;
 			default:
 				usage(optCon, 1, "No such command");
 		}
+		printf("%s\n", exword_response_to_string(rsp));
 		exword_close(device);
 	}
 	return 0;

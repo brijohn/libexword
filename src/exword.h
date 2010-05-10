@@ -54,6 +54,7 @@ typedef struct {
 
 int exword_scan_devices(exword_device_t **devices);
 void exword_free_devices(exword_device_t *devices);
+char *exword_response_to_string(int rsp);
 void exword_set_debug(exword_t *self, int level);
 exword_t * exword_open(exword_device_t *device);
 exword_t * exword_open_by_vid_pid(uint16_t vid, uint16_t pid);
