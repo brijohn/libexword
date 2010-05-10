@@ -167,7 +167,8 @@ int display_capacity(exword_t *d)
 		printf("Internal Capacity: %d / %d\n", cap.total, cap.used);
 	return 0;
 fail:
-		fprintf(stderr, "Failed operation (%d)\n", rsp);
+	fprintf(stderr, "Failed operation (%d)\n", rsp);
+	return rsp;
 }
 
 int send_file(exword_t *d, char *filename)
@@ -243,7 +244,8 @@ int display_model(exword_t *d)
 	printf("Model: %s\n", model);
 	return 0;
 fail:
-		fprintf(stderr, "Failed operation (%d)\n", rsp);
+	fprintf(stderr, "Failed operation (%d)\n", rsp);
+	return rsp;
 }
 
 int scan_devices()
