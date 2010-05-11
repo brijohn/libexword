@@ -74,9 +74,10 @@ struct poptOption options[] = {
 
 
 void usage(poptContext optCon, int exitcode, char *error) {
-    poptPrintUsage(optCon, stderr, 0);
-    if (error) fprintf(stderr, "%s\n", error);
-    exit(exitcode);
+	poptPrintUsage(optCon, stderr, 0);
+	if (error) fprintf(stderr, "%s\n", error);
+	poptFreeContext(optCon);
+	exit(exitcode);
 }
 
 int read_file(char* filename, char **buffer, int *len)
@@ -248,7 +249,6 @@ int scan_devices()
 	} else {
 		printf("%s\n", "No Devices Found.");
 	}
-	exit(0);
 }
 
 int main(int argc, const char** argv)
@@ -265,6 +265,8 @@ int main(int argc, const char** argv)
 		command |= DEV_INTERNAL;
 	if (do_scan) {
 		scan_devices();
+		poptFreeContext(optCon);
+		exit(0);
 	}
 	if (usb_device == NULL || sscanf(usb_device, "%hx:%hx", &vid, &pid) != 2) {
 		usage(optCon, 1, "Bad or no device ID specified");
@@ -296,5 +298,6 @@ int main(int argc, const char** argv)
 		printf("%s\n", exword_response_to_string(rsp));
 		exword_close(device);
 	}
+	poptFreeContext(optCon);
 	return 0;
 }
