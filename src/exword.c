@@ -133,7 +133,7 @@ int exword_send_file(exword_t *self, char* filename, char *file_data, int length
 	len = exword_char_to_unicode(unicode, filename);
 	hv.bs = unicode;
 	obex_object_addheader(self->obex_ctx, obj, OBEX_HDR_NAME, hv, len, 0);
-	hv.bq4 = len;
+	hv.bq4 = length;
 	obex_object_addheader(self->obex_ctx, obj, OBEX_HDR_LENGTH, hv, 0, 0);
 	hv.bs = file_data;
 	obex_object_addheader(self->obex_ctx, obj, OBEX_HDR_BODY, hv, length, 0);
