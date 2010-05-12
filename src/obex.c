@@ -47,9 +47,12 @@ static int obex_bulk_write(obex_t *self, buf_t *msg)
 }
 
 static int obex_verify_seq(obex_t *self, int seq) {
-	int actual_length, retval;
+	int retval, actual_length = 0, count = 0;
 	char check[1];
-	retval = libusb_bulk_transfer(self->usb_dev, self->read_endpoint_address, check, 1, &actual_length, 1245);
+	do {
+		retval = libusb_bulk_transfer(self->usb_dev, self->read_endpoint_address, check, 1, &actual_length, 1245);
+		count++;
+	} while (count < 10 && actual_length != 1);
 	if (retval < 0 || check[0] != seq) {
 		DEBUG(self, 4, "Sequence mismatch %d != %d\n", seq, check[0]);
 		return 0;
