@@ -62,7 +62,7 @@ static int obex_verify_seq(obex_t *self, int seq) {
 
 static int obex_claim_interface(obex_t *ctx)
 {
-	struct libusb_config_descriptor *config;
+	struct libusb_config_descriptor *config = NULL;
 	const struct libusb_interface *intf;
 	const struct libusb_interface_descriptor *intf_desc;
 	const struct libusb_endpoint_descriptor *ep_desc;
@@ -103,7 +103,8 @@ done:
 				libusb_release_interface(ctx->usb_dev, ctx->intf_num);
 		}
 	}
-	libusb_free_config_descriptor(config);
+	if (config != NULL)
+		libusb_free_config_descriptor(config);
 	return ret;
 }
 
