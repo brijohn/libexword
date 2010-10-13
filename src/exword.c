@@ -189,7 +189,7 @@ int exword_setpath(exword_t *self, uint8_t *path)
 	return rsp;
 }
 
-int exword_get_model(exword_t *self, uint8_t * model, uint16_t *count)
+int exword_get_model(exword_t *self, exword_model_t * model)
 {
 	int rsp;
 	obex_headerdata_t hv;
@@ -204,8 +204,8 @@ int exword_get_model(exword_t *self, uint8_t * model, uint16_t *count)
 	if ((rsp & ~OBEX_FINAL) == OBEX_RSP_SUCCESS) {
 		while (obex_object_getnextheader(self->obex_ctx, obj, &hi, &hv, &hv_size)) {
 			if (hi == OBEX_HDR_BODY) {
-				*count = (*count < hv_size ? *count : hv_size);
-				memcpy(model, hv.bs, *count);
+				memcpy(model->model, hv.bs, 15);
+				memcpy(model->sub_model, hv.bs + 14, 6);
 				break;
 			}
 		}

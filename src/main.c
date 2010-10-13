@@ -210,12 +210,11 @@ fail:
 int display_model(exword_t *d)
 {
 	int rsp;
-	uint16_t len = 30;
-	char model[30];
-	rsp = exword_get_model(d, model, &len);
+	exword_model_t model;
+	rsp = exword_get_model(d, &model);
 	if (rsp != 0x20)
 		goto fail;
-	printf("Model: %s\n", model);
+	printf("Model: %s\nSub: %s\n", model.model, model.sub_model);
 fail:
 	return rsp;
 }
