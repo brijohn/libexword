@@ -25,6 +25,8 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <string.h>
+#include <readline/readline.h>
+#include <readline/history.h>
 #include "exword.h"
 
 #define CMD_NONE	0x0
@@ -303,14 +305,16 @@ int parse_commandline(char *cmdl)
 }
 
 void interactive() {
-	char line[BUFSIZ];
+	char * line = NULL;
 	int rsp, ret = 0;
 	exword_t *handle = NULL;
 
 	printf("exword interactive mode\n");
 	while (ret != 1) {
-		printf(">> ");
-		fgets(line, BUFSIZ, stdin);
+		free(line);
+		line = readline(">> ");
+		if (line && *line)
+			add_history(line);
 		ret = parse_commandline(line);
 
 		if (ret < 0) {
@@ -381,6 +385,7 @@ void interactive() {
 		disconnect(handle);
 		exword_close(handle);
 	}
+	free(line);
 	free(filename);
 }
 
