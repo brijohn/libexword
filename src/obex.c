@@ -385,7 +385,7 @@ int obex_object_receive(obex_t *self, obex_object_t *object)
 				return -1;
 			}
 		}
-		object->headeroffset = 6;
+		object->headeroffset = 7;
 	}
 	/* So does CMD_DISCONNECT */
 	if (object->opcode == OBEX_CMD_DISCONNECT) {
