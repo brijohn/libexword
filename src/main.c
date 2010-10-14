@@ -337,6 +337,7 @@ void interactive() {
 			if (handle == NULL) {
 				printf("device not found\n");
 			} else {
+				exword_set_debug(handle, debug_level);
 				if(connect(handle) != 0x20) {
 					printf("connect failed\n");
 					exword_close(handle);
