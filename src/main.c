@@ -38,17 +38,19 @@
 #define CMD_DISCONNECT	0x20
 #define CMD_CONNECT	0x40
 #define CMD_SCAN	0x80
+#define CMD_GET		0x100
 
-#define CMD_MASK	0xff
+#define CMD_MASK	0x1ff
 #define REQ_CON_MASK	(CMD_LIST      | \
 			CMD_MODEL      | \
 			CMD_SEND       | \
 			CMD_DELETE     | \
 			CMD_CAPACITY   | \
-			CMD_DISCONNECT)
+			CMD_DISCONNECT | \
+			CMD_GET)
 
-#define DEV_SD		0x0100
-#define DEV_INTERNAL	0x0200
+#define DEV_SD		0x2000
+#define DEV_INTERNAL	0x4000
 #define CMD_INTERACTIVE 0x8000
 
 uint8_t  debug_level;
@@ -68,6 +70,8 @@ struct poptOption options[] = {
         "list files on device" },
         { "send", 0, POPT_BIT_SET, &command, CMD_SEND,
         "send file to device" },
+        { "get", 0, POPT_BIT_SET, &command, CMD_GET,
+        "get file from device" },
         { "delete", 0, POPT_BIT_SET, &command, CMD_DELETE,
         "delete file from device" },
         { "model", 0, POPT_BIT_SET, &command, CMD_MODEL,
@@ -119,6 +123,22 @@ int read_file(char* filename, char **buffer, int *len)
 	if (*len < 0) {
 		free(buffer);
 		*buffer = NULL;
+		close(fd);
+		return 0x50;
+	}
+	close(fd);
+	return 0x20;
+}
+
+int write_file(char* filename, char *buffer, int len)
+{
+	int fd, ret;
+	struct stat buf;
+	fd = open(filename, O_WRONLY | O_CREAT | O_TRUNC, S_IRUSR | S_IWUSR);
+	if (fd < 0)
+		return 0x43;
+	ret = write(fd, buffer, len);
+	if (ret < 0) {
 		close(fd);
 		return 0x50;
 	}
@@ -187,6 +207,27 @@ int send_file(exword_t *d, char *filename)
 		goto fail;
 	rsp = exword_send_file(d, basename(filename), buffer, len);
 fail:
+	free(buffer);
+	return rsp;
+}
+
+int get_file(exword_t *d, char *filename)
+{
+	int rsp, len;
+	char *buffer = NULL, *fname_copy = NULL;
+	fname_copy = strdup(filename);
+	if (command & DEV_SD)
+		rsp = exword_setpath(d, SD_CARD);
+	else
+		rsp = exword_setpath(d, INTERNAL_MEM);
+	if (rsp != 0x20)
+		goto fail;
+	rsp = exword_get_file(d, basename(fname_copy), &buffer, &len);
+	if (rsp != 0x20)
+		goto fail;
+	rsp = write_file(filename, buffer, len);
+fail:
+	free(fname_copy);
 	free(buffer);
 	return rsp;
 }
@@ -274,7 +315,8 @@ int parse_commandline(char *cmdl)
 			}
 		}
 	} else if(strcmp(cmd, "delete") == 0 ||
-		  strcmp(cmd, "send") == 0) {
+		  strcmp(cmd, "send") == 0   ||
+		  strcmp(cmd, "get") == 0) {
 		free(filename);
 		filename = NULL;
 		sscanf(cmdl, "%*s %ms", &filename);
@@ -283,8 +325,10 @@ int parse_commandline(char *cmdl)
 		} else {
 			if (strcmp(cmd, "delete") == 0)
 				command |= CMD_DELETE;
-			else
+			else if (strcmp(cmd, "send") == 0)
 				command |= CMD_SEND;
+			else
+				command |= CMD_GET;
 		}
 	} else if(strcmp(cmd, "exit") == 0) {
 		ret = 1;
@@ -381,6 +425,11 @@ void interactive() {
 			rsp = send_file(handle, filename);
 			printf("%s\n", exword_response_to_string(rsp));
 			break;
+		case CMD_GET:
+			printf("downloading...");
+			rsp = get_file(handle, filename);
+			printf("%s\n", exword_response_to_string(rsp));
+			break;
 		}
 	}
 	if (handle != NULL) {
@@ -454,6 +503,9 @@ int main(int argc, const char** argv)
 				break;
 			case CMD_SEND:
 				rsp = send_file(device, filename);
+				break;
+			case CMD_GET:
+				rsp = get_file(device, filename);
 				break;
 			case CMD_DELETE:
 				rsp = delete_file(device, filename);

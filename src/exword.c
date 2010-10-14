@@ -143,6 +143,45 @@ int exword_send_file(exword_t *self, char* filename, char *file_data, int length
 	return rsp;
 }
 
+int exword_get_file(exword_t *self, char* filename, char **file_data, int *length)
+{
+	int len, rsp;
+	obex_headerdata_t hv;
+	uint8_t hi;
+	uint32_t hv_size;
+	uint8_t *unicode;
+	*length = 0;
+	*file_data = NULL;
+	unicode = malloc(strlen(filename) * 2 + 2);
+	if (unicode == NULL)
+		return -1;
+	obex_object_t *obj = obex_object_new(self->obex_ctx, OBEX_CMD_GET);
+	if (obj == NULL) {
+		free(unicode);
+		return -1;
+	}
+	len = exword_char_to_unicode(unicode, filename);
+	hv.bs = unicode;
+	obex_object_addheader(self->obex_ctx, obj, OBEX_HDR_NAME, hv, len, 0);
+	rsp = obex_request(self->obex_ctx, obj);
+	if ((rsp & ~OBEX_FINAL) == OBEX_RSP_SUCCESS) {
+		while (obex_object_getnextheader(self->obex_ctx, obj, &hi, &hv, &hv_size)) {
+			if (hi == OBEX_HDR_LENGTH) {
+				*length = hv.bq4;
+				*file_data = malloc(*length);
+			}
+			if (hi == OBEX_HDR_BODY) {
+				memcpy(*file_data, hv.bs, *length);
+				break;
+			}
+		}
+	}
+	obex_object_delete(self->obex_ctx, obj);
+	free(unicode);
+	return rsp;
+}
+
+
 int exword_remove_file(exword_t *self, char* filename)
 {
 	int rsp, len;
