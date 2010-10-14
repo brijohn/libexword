@@ -312,8 +312,10 @@ void interactive() {
 	while (ret != 1) {
 		free(line);
 		line = readline(">> ");
-		if (line && *line)
-			add_history(line);
+		if (line == NULL || *line == '\0')
+			continue;
+
+		add_history(line);
 		ret = parse_commandline(line);
 
 		if (ret < 0) {
