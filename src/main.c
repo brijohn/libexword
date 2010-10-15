@@ -467,15 +467,20 @@ int main(int argc, const char** argv)
 	int rsp;
 	optCon = poptGetContext(NULL, argc, argv, options, 0);
 	poptGetNextOpt(optCon);
+
 	if (command & CMD_INTERACTIVE) {
 		interactive();
 		exit(0);
 	}
 
+	if ((command & CMD_MASK) == 0)
+		usage(optCon, 1, NULL);
+
 	if ((command & DEV_SD) && (command & DEV_INTERNAL))
 		usage(optCon, 1, "--sd and --internal options mutually exclusive");
-	if (command == 0)
+	if (!(command & DEV_SD) || !(command & DEV_INTERNAL))
 		command |= DEV_INTERNAL;
+
 	if (command & CMD_SCAN) {
 		scan_devices();
 		poptFreeContext(optCon);
