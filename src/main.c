@@ -37,8 +37,7 @@
 #define CMD_CAPACITY	0x10
 #define CMD_DISCONNECT	0x20
 #define CMD_CONNECT	0x40
-#define CMD_SCAN	0x80
-#define CMD_GET		0x100
+#define CMD_GET		0x80
 
 #define CMD_MASK	0x1ff
 #define REQ_CON_MASK	(CMD_LIST      | \
@@ -55,8 +54,6 @@
 
 uint8_t  debug_level;
 uint16_t command;
-uint16_t vid, pid;
-char    *usb_device;
 char    *filename;
 
 
@@ -80,12 +77,8 @@ struct poptOption options[] = {
         "get device capacity" },
         { "interactive", 0, POPT_BIT_SET, &command, CMD_INTERACTIVE,
         "interactive mode" },
-        { "scan", 0, POPT_BIT_SET, &command, CMD_SCAN,
-        "scan system for device ids" },
         { "file", 0, POPT_ARG_STRING, &filename, 0,
         "file name to transfer/delete" },
-        { "device", 0, POPT_ARG_STRING, &usb_device, 0,
-        "usb device (eg 0c7f:6101)" },
         { "debug", 0, POPT_ARG_INT, &debug_level, 0,
         "debug level (0..5)" },
         POPT_AUTOHELP
@@ -280,12 +273,10 @@ int parse_commandline(char *cmdl)
 	char *cmd = NULL;
 	command &= ~CMD_MASK;
 	sscanf(cmdl, "%ms", &cmd);
-	if (strcmp(cmd, "scan") == 0) {
-		command |= CMD_SCAN;
-	} else if (strcmp(cmd, "help") == 0) {
+
+	if (strcmp(cmd, "help") == 0) {
 		printf("Commands:\n");
-		printf("scan               - List Devices\n");
-		printf("connect <vid:pid>  - connect to dictionary\n");
+		printf("connect            - connect to attached dictionary\n");
 		printf("disconnect         - disconnect to dictionary\n");
 		printf("model              - print model\n");
 		printf("storage <sd|mem>   - switch storage medium\n");
@@ -294,10 +285,7 @@ int parse_commandline(char *cmdl)
 		printf("delete  <filename> - delete filename\n");
 		printf("send    <filename> - upload filename\n");
 	} else if (strcmp(cmd, "connect") == 0) {
-		if (sscanf(cmdl, "%*s %hx:%hx", &vid, &pid) != 2)
-			printf("connect requires a vid and pid\n");
-		else
-			command |= CMD_CONNECT;
+		command |= CMD_CONNECT;
 	} else if (strcmp(cmd, "storage") == 0) {
 		char type[4];
 		sscanf(cmdl, "%*s %4s", type);
@@ -374,12 +362,9 @@ void interactive() {
 		}
 
 		switch(command & CMD_MASK) {
-		case CMD_SCAN:
-			scan_devices();
-			break;
 		case CMD_CONNECT:
-			printf("connecting to %04X:%04X...", vid, pid);
-			handle = exword_open_by_vid_pid(vid, pid);
+			printf("connecting to device...");
+			handle = exword_open();
 			if (handle == NULL) {
 				printf("device not found\n");
 			} else {
@@ -440,30 +425,10 @@ void interactive() {
 	free(filename);
 }
 
-int scan_devices()
-{
-	int i, num;
-	exword_device_t *devices = NULL;
-	num = exword_scan_devices(&devices);
-	if (num > 0) {
-		printf("%s\n", "Devices:");
-		for (i = 0; i< num; i++) {
-			printf("%d: %04X:%04X %s %s\n", i, devices[i].vid,
-							devices[i].pid,
-							devices[i].manufacturer,
-							devices[i].product);
-		}
-		exword_free_devices(devices);
-	} else {
-		printf("%s\n", "No Devices Found.");
-	}
-}
-
 int main(int argc, const char** argv)
 {
 	poptContext optCon;
 	exword_t *device;
-	uint16_t vid, pid;
 	int rsp;
 	optCon = poptGetContext(NULL, argc, argv, options, 0);
 	poptGetNextOpt(optCon);
@@ -476,17 +441,10 @@ int main(int argc, const char** argv)
 		usage(optCon, 1, "--sd and --internal options mutually exclusive");
 	if (command == 0)
 		command |= DEV_INTERNAL;
-	if (command & CMD_SCAN) {
-		scan_devices();
-		poptFreeContext(optCon);
-		exit(0);
-	}
-	if (usb_device == NULL || sscanf(usb_device, "%hx:%hx", &vid, &pid) != 2) {
-		usage(optCon, 1, "Bad or no device ID specified");
-	}
-	device = exword_open_by_vid_pid(vid, pid);
+
+	device = exword_open();
 	if (device == NULL) {
-		fprintf(stderr, "Failed to open %04X:%04X\n", vid, pid);
+		fprintf(stderr, "Failed to open device or no device found\n");
 	} else {
 		exword_set_debug(device, debug_level);
 		rsp = connect(device);
