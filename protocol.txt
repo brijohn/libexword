@@ -1,0 +1,142 @@
+CASIO Ex-Word protocol documentation
+====================================
+
+The protocol used by Casio EX-Word electronic dictionaries is a slightly
+modified version obex. This custom version prefixes each request with a
+sequence number. The response packet is then preceded by a one byte packet
+containing the sequence number of the request.
+
+example of a request/response exchange
+request:   <seq> <opcode> <packet length> <headers...>
+response:  <seq>
+           <response code> <response length> <headers...>
+
+Known commands:
+
+Connect
+  This command must be the first one you send and is used to make a
+  connection to the obex server on the dictionary.
+
+  The request/response for the connect string is defined the same as
+  in standard obex except that in the request following the the maximum
+  packet length are three additional bytes 0x40 0x00 and 0x20. The response
+  has two additional bytes 0x40 and 0x00 as well.
+
+Disconnect
+  This command sends a disconnect to the dictionary and shuts down the usb
+  device. It uses the standard obex disconnect opcode with no additional
+  headers.
+
+Setpath
+  Changes the current path on the dictionary. Each pathname needs to begin
+  with either /_INTERNAL_00 or /_SD_00 which specify which storage device
+  we are accessing either internal memory or the currently inserted SD card.
+
+  Request:
+    Uses the 0x85 (setpath) opcode followed by a name header containing the
+    Unicode pathname.
+  Response:
+    Contains no additional headers.
+
+Capacity
+  Retrieves capacity of currently selected storage device.
+
+  Request:
+    Uses the 0x83 (get) opcode followed by a name header containing the
+    Unicode string "_Cap".
+  Response:
+    The response returns a length header and end of body header.
+    The length header contains the length of data sent in the end of body
+    header and should contain the value 8. The end of body header contains
+    two 4 byte numbers in network byte order with the first representing the
+    total capacity and the second one represents amount of space used.
+
+Model
+  Get model information.
+
+  Request:
+    Uses the 0x83 (get) opcode followed by a name header containing the
+    Unicode string "_Model".
+  Response:
+    The response returns a length header and end of body header.
+    The length header contains the length of data sent in the end of body
+    header. The end of body header contains two null terminated strings
+    containing the model information. So far the first one seems to always
+    be the same for all models tested.
+
+List
+  Return directory information for the currently selected path.
+
+  Request:
+    Uses the 0x83 (get) opcode followed by a name header containing the
+    Unicode string "_List".
+  Response:
+    The response returns a length header and end of body header.
+    The length header contains the length of data sent in the end of body
+    header. The end of body header contains the directory information as
+    an array of the following structure.
+
+    struct directory_entry {
+        uint16_t size;  //size of structure
+        uint8_t  flags; //file = 0, directory = 1
+        uint8_t  name[13]; //name of file/directory 8.3 format
+    }
+
+Remove
+  Removes a file from currently selected path.
+
+  Request:
+    Uses the 0x82 (put) opcode followed by a name header containing the
+    Unicode string "_Remove". Following the name header are a length and
+    end of body header. The length gives the length of data in the end of body
+    header and the end of body header contains a null terminated string of the
+    filename to remove.
+  Response:
+    Contains no additional headers.
+
+Send file
+  Sends a file to the dictionary.
+
+  Request:
+    Uses the 0x82 (put) opcode followed by a name, length, and body/end of body
+    headers. The name header is a Unicode string containing the name of the
+    file being sent, the length header should contain the total size of the
+    file and the body/end of body headers contain the actual file data.
+
+    If the file is greater then max packet size it will be split across multiple
+    put requests only the first one will include the name and length headers.
+  Response:
+    Contains no additional headers.
+
+
+Get file
+  Sends a file to the dictionary.
+
+  Request:
+    Uses the 0x83 (get) opcode followed by a name header. The name header is
+    a Unicode string containing the name of the file being retrieved.
+  Response:
+    The response returns a length header and body/end of body headers.
+    The length header contains the length of data sent in the body/end of
+    body headers. The body/end of body headers contain the file data
+    retrieved.
+
+    If the file is large enough(more then about 4k), it will be split across
+    multiple response packets. In this case only the first response contains
+    the length header.
+
+
+AuthChallenge
+AuthInfo
+UserId
+Unlock
+Lock
+CName
+CryptKey
+  These commands are used for encryption and authentication and are not yet
+  implemented. At least on my dictionary I am able to send retrieve and delete
+  files without the need for any of the above commands. From what I've seen so
+  far it seems they are really only needed for installing and registering
+  add-on dictionaries.
+
+
