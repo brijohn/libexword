@@ -20,6 +20,7 @@ exword [OPTION...]
       --delete            delete file from device
       --model             get device model
       --capacity          get device capacity
+      --format            format SD card
       --scan              scan system for device ids
       --file=STRING       file name to transfer/delete
       --device=STRING     usb device (eg 0c7f:6101)

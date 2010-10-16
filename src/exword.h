@@ -71,6 +71,7 @@ int exword_send_file(exword_t *self, char* filename, char *buffer, int len);
 int exword_remove_file(exword_t *self, char* filename);
 int exword_get_model(exword_t *self, exword_model_t * model);
 int exword_get_capacity(exword_t *self, exword_capacity_t *cap);
+int exword_sd_format(exword_t *self);
 int exword_setpath(exword_t *self, uint8_t *path);
 int exword_list(exword_t *self, directory_entry_t **entries, uint16_t *count);
 int exword_disconnect(exword_t *self);

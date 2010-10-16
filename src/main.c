@@ -39,15 +39,17 @@
 #define CMD_CONNECT	0x40
 #define CMD_SCAN	0x80
 #define CMD_GET		0x100
+#define CMD_FORMAT	0x200
 
-#define CMD_MASK	0x1ff
+#define CMD_MASK	0x3ff
 #define REQ_CON_MASK	(CMD_LIST      | \
 			CMD_MODEL      | \
 			CMD_SEND       | \
 			CMD_DELETE     | \
 			CMD_CAPACITY   | \
 			CMD_DISCONNECT | \
-			CMD_GET)
+			CMD_GET        | \
+			CMD_FORMAT)
 
 #define DEV_SD		0x2000
 #define DEV_INTERNAL	0x4000
@@ -78,6 +80,8 @@ struct poptOption options[] = {
         "get device model" },
         { "capacity", 0, POPT_BIT_SET, &command, CMD_CAPACITY,
         "get device capacity" },
+        { "format", 0, POPT_BIT_SET, &command, CMD_FORMAT,
+        "format SD Card" },
         { "interactive", 0, POPT_BIT_SET, &command, CMD_INTERACTIVE,
         "interactive mode" },
         { "scan", 0, POPT_BIT_SET, &command, CMD_SCAN,
@@ -260,6 +264,17 @@ fail:
 	return rsp;
 }
 
+int sd_format(exword_t *d)
+{
+	int rsp;
+	rsp = exword_setpath(d, "");
+	if (rsp != 0x20)
+		goto fail;
+	rsp = exword_sd_format(d);
+fail:
+	return rsp;
+}
+
 int connect(exword_t *d)
 {
 	int rsp;
@@ -291,6 +306,7 @@ int parse_commandline(char *cmdl)
 		printf("storage <sd|mem>   - switch storage medium\n");
 		printf("list               - list files\n");
 		printf("capacity           - display medium capacity\n");
+		printf("format             - format SD card\n");
 		printf("delete  <filename> - delete filename\n");
 		printf("send    <filename> - upload filename\n");
 	} else if (strcmp(cmd, "connect") == 0) {
@@ -340,6 +356,8 @@ int parse_commandline(char *cmdl)
 		command |= CMD_CAPACITY;
 	} else if (strcmp(cmd, "list") == 0) {
 		command |= CMD_LIST;
+	} else if (strcmp(cmd, "format") == 0) {
+		command |= CMD_FORMAT;
 	} else {
 		ret = -1;
 	}
@@ -430,6 +448,11 @@ void interactive() {
 			rsp = get_file(handle, filename);
 			printf("%s\n", exword_response_to_string(rsp));
 			break;
+		case CMD_FORMAT:
+			printf("formatting...");
+			rsp = sd_format(handle);
+			printf("%s\n", exword_response_to_string(rsp));
+			break;
 		}
 	}
 	if (handle != NULL) {
@@ -514,6 +537,9 @@ int main(int argc, const char** argv)
 				break;
 			case CMD_DELETE:
 				rsp = delete_file(device, filename);
+				break;
+			case CMD_FORMAT:
+				rsp = sd_format(device);
 				break;
 			default:
 				usage(optCon, 1, "No such command");

@@ -94,6 +94,22 @@ Remove
   Response:
     Contains no additional headers.
 
+SdFormat
+  Formats currently inserted SD Card
+
+  Request:
+    Uses the 0x82 (put) opcode followed by a name header containing the
+    Unicode string "_SdFormat". Following the name header are a length and
+    end of body header. The length gives the length of data in the end of body
+    header and the end of body header contains only a null character.
+
+    I am unsure what if anything the end of body header is for. The only usb
+    trace logs I have all just have that header containing a single null byte.
+    Putting other data in there does not seem to cause the command to stop
+    working, but it also doesn't seem to change anything either.
+  Response:
+    Contains no additional headers.
+
 Send file
   Sends a file to the dictionary.
 
