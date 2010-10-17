@@ -170,7 +170,7 @@ typedef struct {
 	buf_t *tx_msg;
 	buf_t *rx_msg;
 	int debug;
-	int seq_num;
+	uint8_t seq_num;
 } obex_t;
 
 #pragma pack(1)

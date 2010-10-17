@@ -46,9 +46,9 @@ static int obex_bulk_write(obex_t *self, buf_t *msg)
 	return retval;
 }
 
-static int obex_verify_seq(obex_t *self, int seq) {
+static int obex_verify_seq(obex_t *self, uint8_t seq) {
 	int retval, actual_length = 0, count = 0;
-	char check[1];
+	uint8_t check[1];
 	do {
 		retval = libusb_bulk_transfer(self->usb_dev, self->read_endpoint_address, check, 1, &actual_length, 1245);
 		count++;
