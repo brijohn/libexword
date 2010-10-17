@@ -38,6 +38,10 @@ const char CryptKey[] = {0,'_',0,'C',0,'r',0,'y',0,'p',0,'t',0,'K',0,'e',0,'y',0
 
 struct _exword {
 	obex_t *obex_ctx;
+	uint16_t vid;
+	uint16_t pid;
+	char manufacturer[20];
+	char product[20];
 };
 
 static int exword_char_to_unicode(uint8_t *uc, const uint8_t *c)
@@ -58,42 +62,59 @@ static int exword_char_to_unicode(uint8_t *uc, const uint8_t *c)
 	return (len * 2) + 2;
 }
 
-exword_t * exword_open(exword_device_t *device)
+exword_t * exword_open()
 {
-	if (device == NULL)
-		return NULL;
+	int i;
+	ssize_t ret;
+	struct libusb_device_descriptor desc;
+	libusb_device **dev_list = NULL;
+	libusb_device *device = NULL;
+	libusb_device_handle *dev = NULL;
 
 	exword_t *self = malloc(sizeof(exword_t));
 	if (self == NULL)
 		return NULL;
 
-	self->obex_ctx = obex_init(device->vid, device->pid);
-	if (self->obex_ctx == NULL) {
-		free(self);
-		return NULL;
-	}
-	return self;
-}
+	ret = libusb_init(NULL);
+	if (ret < 0)
+		goto error;
 
-exword_t * exword_open_by_vid_pid(uint16_t vid, uint16_t pid)
-{
-	exword_device_t *devices = NULL;
-	exword_t *self = NULL;
-	int num;
-	int i;
-	num = exword_scan_devices(&devices);
-	if (num <= 0)
-		return NULL;
-	for (i = 0; i < num; i++) {
-		if (devices[i].vid == vid && devices[i].pid == pid) {
-			self = exword_open(&devices[i]);
-			if (self)
-				break;
+	ret = libusb_get_device_list(NULL, &dev_list);
+	if (ret < 0)
+		goto error;
+
+	for (i = 0; i < ret; i++) {
+		device = dev_list[i];
+		if (libusb_get_device_descriptor(device, &desc) == 0) {
+			if (desc.idVendor == 0x07cf && desc.idProduct == 0x6101) {
+				if (libusb_open(device, &dev) >= 0) {
+					self->vid = desc.idVendor;
+					self->pid = desc.idProduct;
+					libusb_get_string_descriptor_ascii(dev, desc.iManufacturer, self->manufacturer, 20);
+					libusb_get_string_descriptor_ascii(dev, desc.iProduct, self->product, 20);
+					libusb_close(dev);
+					break;
+				}
+			}
 		}
 	}
-	exword_free_devices(devices);
+
+	if (i >= ret)
+		goto error;
+
+	self->obex_ctx = obex_init(self->vid, self->pid);
+	if (self->obex_ctx == NULL)
+		goto error;
+
 	return self;
+
+error:
+	free(self);
+	libusb_free_device_list(dev_list, 1);
+	libusb_exit(NULL);
+	return NULL;
 }
+
 
 void exword_close(exword_t *self)
 {
@@ -342,51 +363,6 @@ int exword_disconnect(exword_t *self)
 	rsp = obex_request(self->obex_ctx, obj);
 	obex_object_delete(self->obex_ctx, obj);
 	return rsp;
-}
-
-void exword_free_devices(exword_device_t *devices)
-{
-	free(devices);
-}
-
-int exword_scan_devices(exword_device_t **devices)
-{
-	int i, num = 0;
-	ssize_t ret = 0;
-	libusb_device **dev_list;
-	libusb_device *device;
-	libusb_device_handle *dev;
-	struct libusb_device_descriptor desc;
-	ret = libusb_init(NULL);
-	if (ret < 0)
-		goto done;
-	ret = libusb_get_device_list(NULL, &dev_list);
-	if (ret < 0)
-		goto done;
-	*devices = malloc(sizeof(exword_device_t) * ret);
-	memset(*devices, 0, sizeof(exword_device_t) * ret);
-	if (*devices == NULL)
-		return -1;
-	for (i = 0; i < ret; i++) {
-		device = dev_list[i];
-		if (libusb_get_device_descriptor(device, &desc) == 0) {
-			if (desc.idVendor == 0x7cf) {
-				if (libusb_open(device, &dev) >= 0) {
-					(*devices)[num].vid = desc.idVendor;
-					(*devices)[num].pid = desc.idProduct;
-					libusb_get_string_descriptor_ascii(dev, desc.iManufacturer, (*devices)[num].manufacturer, 20);
-					libusb_get_string_descriptor_ascii(dev, desc.iProduct, (*devices)[num].product, 20);
-					libusb_close(dev);
-					num++;
-				}
-			}
-		}
-	}
-	*devices = realloc(*devices, sizeof(exword_device_t) * num);
-done:
-	libusb_free_device_list(dev_list, 1);
-	libusb_exit(NULL);
-	return num;
 }
 
 char *exword_response_to_string(int rsp)

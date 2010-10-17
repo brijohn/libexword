@@ -26,13 +26,6 @@
 
 typedef struct _exword exword_t;
 
-typedef struct {
-	uint16_t vid;
-	uint16_t pid;
-	char manufacturer[20];
-	char product[20];
-} exword_device_t;
-
 #define SD_CARD		"\\_SD_00"
 #define INTERNAL_MEM	"\\_INTERNAL_00"
 #define ROOT		""
@@ -59,12 +52,9 @@ typedef struct {
 } exword_model_t;
 #pragma pack()
 
-int exword_scan_devices(exword_device_t **devices);
-void exword_free_devices(exword_device_t *devices);
 char *exword_response_to_string(int rsp);
 void exword_set_debug(exword_t *self, int level);
-exword_t * exword_open(exword_device_t *device);
-exword_t * exword_open_by_vid_pid(uint16_t vid, uint16_t pid);
+exword_t * exword_open();
 void exword_close(exword_t *self);
 int exword_connect(exword_t *self);
 int exword_send_file(exword_t *self, char* filename, char *buffer, int len);

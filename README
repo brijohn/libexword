@@ -13,18 +13,18 @@ Usage
 ==========================
 
 exword [OPTION...]
-      --sd                access external sd card
-      --internal          access internal memory (default)
-      --list              list files on device
-      --send              send file to device
-      --delete            delete file from device
-      --model             get device model
-      --capacity          get device capacity
+      --sd              access external sd card
+      --internal        access internal memory (default)
+      --list            list files on device
+      --send            send file to device
+      --get             get file from device
+      --delete          delete file from device
+      --model           get device model
+      --capacity        get device capacity
       --format            format SD card
-      --scan              scan system for device ids
-      --file=STRING       file name to transfer/delete
-      --device=STRING     usb device (eg 0c7f:6101)
-      --debug=INT         debug level (0..5)
+      --interactive     interactive mode
+      --file=STRING     file name to transfer/delete
+      --debug=INT       debug level (0..5)
 
 Help options:
   -?, --help              Show this help message
