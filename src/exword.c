@@ -124,7 +124,7 @@ void exword_close(exword_t *self)
 	}
 }
 
-void exword_set_debug(exword_t *self, int level)
+void exword_set_debug(int level)
 {
 	debug = level;
 }

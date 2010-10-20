@@ -300,6 +300,7 @@ int parse_commandline(char *cmdl)
 		printf("format             - format SD card\n");
 		printf("delete  <filename> - delete filename\n");
 		printf("send    <filename> - upload filename\n");
+		printf("debug   <number>   - set debug level (0-5)\n");
 	} else if (strcmp(cmd, "connect") == 0) {
 		command |= CMD_CONNECT;
 	} else if (strcmp(cmd, "storage") == 0) {
@@ -334,6 +335,13 @@ int parse_commandline(char *cmdl)
 			else
 				command |= CMD_GET;
 		}
+	} else if(strcmp(cmd, "debug") == 0) {
+		if (sscanf(cmdl, "debug %u", &debug_level) < 1)
+			printf("Requires debug level\n");
+		else if (debug_level > 5)
+			printf("Value should be between 0 and 5\n");
+		else
+			exword_set_debug(debug_level);
 	} else if(strcmp(cmd, "exit") == 0) {
 		ret = 1;
 	} else if (strcmp(cmd, "disconnect") == 0) {
@@ -386,7 +394,7 @@ void interactive() {
 			if (handle == NULL) {
 				printf("device not found\n");
 			} else {
-				exword_set_debug(handle, debug_level);
+				exword_set_debug(debug_level);
 				if(connect(handle) != 0x20) {
 					printf("connect failed\n");
 					exword_close(handle);
@@ -473,7 +481,7 @@ int main(int argc, const char** argv)
 	if (device == NULL) {
 		fprintf(stderr, "Failed to open device or no device found\n");
 	} else {
-		exword_set_debug(device, debug_level);
+		exword_set_debug(debug_level);
 		rsp = connect(device);
 		if (rsp == 0x20) {
 			switch(command & CMD_MASK) {

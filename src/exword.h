@@ -53,7 +53,7 @@ typedef struct {
 #pragma pack()
 
 char *exword_response_to_string(int rsp);
-void exword_set_debug(exword_t *self, int level);
+void exword_set_debug(int level);
 exword_t * exword_open();
 void exword_close(exword_t *self);
 int exword_connect(exword_t *self);
