@@ -39,8 +39,9 @@
 #define CMD_CONNECT	0x40
 #define CMD_GET		0x80
 #define CMD_FORMAT	0x100
+#define CMD_SETPATH	0x200
 
-#define CMD_MASK	0x1ff
+#define CMD_MASK	0x3ff
 #define REQ_CON_MASK	(CMD_LIST      | \
 			CMD_MODEL      | \
 			CMD_SEND       | \
@@ -48,22 +49,23 @@
 			CMD_CAPACITY   | \
 			CMD_DISCONNECT | \
 			CMD_GET        | \
-			CMD_FORMAT)
+			CMD_FORMAT     | \
+			CMD_SETPATH)
 
-#define DEV_SD		0x2000
-#define DEV_INTERNAL	0x4000
 #define CMD_INTERACTIVE 0x8000
 
 uint8_t  debug_level;
 uint16_t command;
 char    *filename;
+char    *sd_path;
+char    *mem_path;
 
 
 
 struct poptOption options[] = {
-        { "sd", 0, POPT_BIT_SET, &command, DEV_SD,
+        { "sd", 0, POPT_ARG_STRING, &sd_path, 0,
         "access external sd card" },
-        { "internal", 0, POPT_BIT_SET, &command, DEV_INTERNAL,
+        { "internal", 0, POPT_ARG_STRING, &mem_path, 0,
         "access internal memory (default)" },
         { "list", 0, POPT_BIT_SET, &command, CMD_LIST,
         "list files on device" },
@@ -148,12 +150,6 @@ int list_files(exword_t *d)
 	int rsp, i;
 	directory_entry_t *entries;
 	uint16_t len;
-	if (command & DEV_SD)
-		rsp = exword_setpath(d, SD_CARD);
-	else
-		rsp = exword_setpath(d, INTERNAL_MEM);
-	if (rsp != 0x20)
-		goto fail;
 	rsp = exword_list(d, &entries, &len);
 	if (rsp != 0x20)
 		goto fail;
@@ -172,19 +168,12 @@ int display_capacity(exword_t *d)
 {
 	int rsp;
 	exword_capacity_t cap;
-	if (command & DEV_SD)
-		rsp = exword_setpath(d, SD_CARD);
-	else
-		rsp = exword_setpath(d, INTERNAL_MEM);
 	if (rsp != 0x20)
 		goto fail;
 	rsp = exword_get_capacity(d, &cap);
 	if (rsp != 0x20)
 		goto fail;
-	if (command & DEV_SD)
-		printf("SD Capacity: %d / %d\n", cap.total, cap.used);
-	else
-		printf("Internal Capacity: %d / %d\n", cap.total, cap.used);
+	printf("Capacity: %d / %d\n", cap.total, cap.used);
 fail:
 	return rsp;
 }
@@ -194,12 +183,6 @@ int send_file(exword_t *d, char *filename)
 	int rsp, len;
 	char *buffer;
 	rsp = read_file(filename, &buffer, &len);
-	if (rsp != 0x20)
-		goto fail;
-	if (command & DEV_SD)
-		rsp = exword_setpath(d, SD_CARD);
-	else
-		rsp = exword_setpath(d, INTERNAL_MEM);
 	if (rsp != 0x20)
 		goto fail;
 	rsp = exword_send_file(d, basename(filename), buffer, len);
@@ -213,12 +196,6 @@ int get_file(exword_t *d, char *filename)
 	int rsp, len;
 	char *buffer = NULL, *fname_copy = NULL;
 	fname_copy = strdup(filename);
-	if (command & DEV_SD)
-		rsp = exword_setpath(d, SD_CARD);
-	else
-		rsp = exword_setpath(d, INTERNAL_MEM);
-	if (rsp != 0x20)
-		goto fail;
 	rsp = exword_get_file(d, basename(fname_copy), &buffer, &len);
 	if (rsp != 0x20)
 		goto fail;
@@ -229,17 +206,41 @@ fail:
 	return rsp;
 }
 
+int set_path(exword_t *d, char* device, char *pathname)
+{
+	char *path, *p;
+	int rsp, i = 0, j;
+	path = malloc(strlen(device) + strlen(pathname) + 2);
+	if (!path)
+		return 0x50;
+	strcpy(path, device);
+	strcat(path, "\\");
+	strcat(path, pathname);
+	p = path;
+	while(p[0] != '\0') {
+		while((p[0] == '/' || p[0] == '\\') &&
+		      (p[1] == '/' || p[1] == '\\')) {
+			char *t = p;
+			while(t[0] != '\0') {
+				t++;
+				t[-1] = t[0];
+			}
+		}
+		if (p[0] == '/')
+			p[0] = '\\';
+		p++;
+	}
+	rsp = exword_setpath(d, path);
+fail:
+	free(path);
+	return rsp;
+}
+
 int delete_file(exword_t *d, char *filename)
 {
 	int rsp;
 	if (filename == NULL)
 		return 0x40;
-	if (command & DEV_SD)
-		rsp = exword_setpath(d, SD_CARD);
-	else
-		rsp = exword_setpath(d, INTERNAL_MEM);
-	if (rsp != 0x20)
-		goto fail;
 	rsp = exword_remove_file(d, basename(filename));
 fail:
 	return rsp;
@@ -284,39 +285,34 @@ int disconnect(exword_t *d)
 
 int parse_commandline(char *cmdl)
 {
-	int ret = 0;
+	int ret = 0, r1, r2;
 	char *cmd = NULL;
 	command &= ~CMD_MASK;
 	sscanf(cmdl, "%ms", &cmd);
 
 	if (strcmp(cmd, "help") == 0) {
 		printf("Commands:\n");
-		printf("connect            - connect to attached dictionary\n");
-		printf("disconnect         - disconnect to dictionary\n");
-		printf("model              - print model\n");
-		printf("storage <sd|mem>   - switch storage medium\n");
-		printf("list               - list files\n");
-		printf("capacity           - display medium capacity\n");
-		printf("format             - format SD card\n");
-		printf("delete  <filename> - delete filename\n");
-		printf("send    <filename> - upload filename\n");
+		printf("connect                   - connect to attached dictionary\n");
+		printf("disconnect                - disconnect to dictionary\n");
+		printf("model                     - print model\n");
+		printf("setpath <sd|mem>://<path> - switch storage medium\n");
+		printf("list                      - list files\n");
+		printf("capacity                  - display medium capacity\n");
+		printf("format                    - format SD card\n");
+		printf("delete  <filename>        - delete filename\n");
+		printf("send    <filename>        - upload filename\n");
 	} else if (strcmp(cmd, "connect") == 0) {
 		command |= CMD_CONNECT;
-	} else if (strcmp(cmd, "storage") == 0) {
-		char type[4];
-		sscanf(cmdl, "%*s %4s", type);
-		if ((strcmp(type, "sd") && strcmp(type, "mem"))) {
-			printf("Requires either 'sd' or 'mem'\n");
+	} else if (strcmp(cmd, "setpath") == 0) {
+		free(sd_path);
+		sd_path = NULL;
+		free(mem_path);
+		mem_path = NULL;
+		if (sscanf(cmdl, "%*s sd://%ms", &sd_path) > 0 || 
+		    sscanf(cmdl, "%*s mem://%ms", &mem_path) > 0) {
+			command |= CMD_SETPATH;
 		} else {
-			if (strcmp(type, "sd") == 0) {
-				command &= ~DEV_INTERNAL;
-				command |= DEV_SD;
-				printf("Switching to SD Card\n");
-			} else {
-				command &= ~DEV_SD;
-				command |= DEV_INTERNAL;
-				printf("Switching to Internal Memory\n");
-			}
+			printf("Invalid argument. Format (sd|mem)://<path>\n");
 		}
 	} else if(strcmp(cmd, "delete") == 0 ||
 		  strcmp(cmd, "send") == 0   ||
@@ -392,6 +388,7 @@ void interactive() {
 					exword_close(handle);
 					handle = NULL;
 				} else {
+					exword_setpath(handle, INTERNAL_MEM);
 					printf("done\n");
 				}
 			}
@@ -402,6 +399,14 @@ void interactive() {
 			exword_close(handle);
 			handle = NULL;
 			printf("done\n");
+			break;
+		case CMD_SETPATH:
+			if (sd_path)
+				rsp = set_path(handle, SD_CARD, sd_path);
+			else 
+				rsp = set_path(handle, INTERNAL_MEM, mem_path);
+			if (rsp != 0x20)
+				printf("%s\n", exword_response_to_string(rsp));
 			break;
 		case CMD_MODEL:
 			rsp = display_model(handle);
@@ -446,6 +451,8 @@ void interactive() {
 	}
 	free(line);
 	free(filename);
+	free(sd_path);
+	free(mem_path);
 }
 
 int main(int argc, const char** argv)
@@ -454,7 +461,8 @@ int main(int argc, const char** argv)
 	exword_t *device;
 	int rsp;
 	optCon = poptGetContext(NULL, argc, argv, options, 0);
-	poptGetNextOpt(optCon);
+	if (poptGetNextOpt(optCon) < -1)
+		usage(optCon, 1, NULL);
 
 	if (command & CMD_INTERACTIVE) {
 		interactive();
@@ -464,10 +472,8 @@ int main(int argc, const char** argv)
 	if ((command & CMD_MASK) == 0)
 		usage(optCon, 1, NULL);
 
-	if ((command & DEV_SD) && (command & DEV_INTERNAL))
+	if (sd_path && mem_path)
 		usage(optCon, 1, "--sd and --internal options mutually exclusive");
-	if (!(command & DEV_SD) || !(command & DEV_INTERNAL))
-		command |= DEV_INTERNAL;
 
 	device = exword_open();
 	if (device == NULL) {
@@ -475,6 +481,14 @@ int main(int argc, const char** argv)
 	} else {
 		exword_set_debug(device, debug_level);
 		rsp = connect(device);
+		if (rsp == 0x20) {
+			if (sd_path)
+				rsp = set_path(device, SD_CARD, sd_path);
+			else if (mem_path)
+				rsp = set_path(device, INTERNAL_MEM, mem_path);
+			else
+				rsp = set_path(device, INTERNAL_MEM, "\\");
+		}
 		if (rsp == 0x20) {
 			switch(command & CMD_MASK) {
 			case CMD_LIST:
