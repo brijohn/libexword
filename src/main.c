@@ -230,7 +230,7 @@ int set_path(exword_t *d, char* device, char *pathname)
 			p[0] = '\\';
 		p++;
 	}
-	rsp = exword_setpath(d, path);
+	rsp = exword_setpath(d, path, SETPATH_NOCREATE);
 fail:
 	free(path);
 	return rsp;
@@ -261,9 +261,6 @@ fail:
 int sd_format(exword_t *d)
 {
 	int rsp;
-	rsp = exword_setpath(d, "");
-	if (rsp != 0x20)
-		goto fail;
 	rsp = exword_sd_format(d);
 fail:
 	return rsp;
@@ -388,7 +385,7 @@ void interactive() {
 					exword_close(handle);
 					handle = NULL;
 				} else {
-					exword_setpath(handle, INTERNAL_MEM);
+					rsp = set_path(handle, INTERNAL_MEM, "/");
 					printf("done\n");
 				}
 			}

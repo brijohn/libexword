@@ -242,9 +242,10 @@ int exword_sd_format(exword_t *self)
 	return rsp;
 }
 
-int exword_setpath(exword_t *self, uint8_t *path)
+int exword_setpath(exword_t *self, uint8_t *path, uint8_t flags)
 {
 	int len, rsp;
+	uint8_t non_hdr[2] = {flags, 0x00};
 	obex_headerdata_t hv;
 	uint8_t *unicode = malloc(strlen(path) * 2 + 2);
 	if (unicode == NULL)
@@ -261,7 +262,7 @@ int exword_setpath(exword_t *self, uint8_t *path)
 		len = exword_char_to_unicode(unicode, path);
 		hv.bs = unicode;
 	}
-	obex_object_set_nonhdr_data(obj, "\x02\x00", 2);
+	obex_object_set_nonhdr_data(obj, non_hdr, 2);
 	obex_object_addheader(self->obex_ctx, obj, OBEX_HDR_NAME, hv, len, 0);
 	rsp = obex_request(self->obex_ctx, obj);
 	obex_object_delete(self->obex_ctx, obj);
