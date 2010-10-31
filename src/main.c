@@ -262,7 +262,6 @@ int sd_format(exword_t *d)
 {
 	int rsp;
 	rsp = exword_sd_format(d);
-fail:
 	return rsp;
 }
 

@@ -30,10 +30,13 @@ const char List[] = {0,'_',0,'L',0,'i',0,'s',0,'t',0,0};
 const char Remove[] = {0,'_',0,'R',0,'e',0,'m',0,'o',0,'v',0,'e',0,0};
 const char Cap[] = {0,'_',0,'C',0,'a',0,'p',0,0};
 const char SdFormat[] = {0,'_',0,'S',0,'d',0,'F',0,'o',0,'r',0,'m',0,'a',0,'t',0,0};
+const char UserId[] = {0,'_',0,'U',0,'s',0,'e',0,'r',0,'I',0,'d',0,0};
 const char Unlock[] = {0,'_',0,'U',0,'n',0,'l',0,'o',0,'c',0,'k',0,0};
 const char Lock[] = {0,'_',0, 'L',0,'o',0,'c',0,'k',0,0};
 const char CName[] = {0,'_',0,'C',0,'N',0,'a',0,'m',0,'e',0,0};
 const char CryptKey[] = {0,'_',0,'C',0,'r',0,'y',0,'p',0,'t',0,'K',0,'e',0,'y',0,0};
+const char AuthChallenge[] = {0,'_',0,'A', 0, 'u', 0, 't', 0, 'h', 0, 'C', 0, 'h', 0, 'a', 0, 'l', 0, 'l', 0, 'e', 0, 'n', 0, 'g', 0, 'e', 0, 0};
+const char AuthInfo[] = {0,'_',0,'A', 0, 'u', 0, 't', 0, 'h', 0, 'I', 0, 'n', 0, 'f', 0, 'o', 0, 0};
 
 
 struct _exword {
@@ -353,6 +356,150 @@ int exword_list(exword_t *self, directory_entry_t **entries, uint16_t *count)
 	}
 	obex_object_delete(self->obex_ctx, obj);
 	return rsp;
+}
+
+int exword_userid(exword_t *self, exword_userid_t id)
+{
+	int rsp;
+	obex_headerdata_t hv;
+	obex_object_t *obj = obex_object_new(self->obex_ctx, OBEX_CMD_PUT);
+	if (obj == NULL)
+		return -1;
+	hv.bs = UserId;
+	obex_object_addheader(self->obex_ctx, obj, OBEX_HDR_NAME, hv, 16, 0);
+	hv.bq4 = 17;
+	obex_object_addheader(self->obex_ctx, obj, OBEX_HDR_LENGTH, hv, 0, 0);
+	hv.bs = id.name;
+	obex_object_addheader(self->obex_ctx, obj, OBEX_HDR_BODY, hv, 17, 0);
+	rsp = obex_request(self->obex_ctx, obj);
+	obex_object_delete(self->obex_ctx, obj);
+	return rsp;
+}
+
+int exword_cryptkey(exword_t *self, exword_cryptkey_t *key)
+{
+	int rsp;
+	obex_headerdata_t hv;
+	uint8_t hi;
+	uint32_t hv_size;
+	obex_object_t *obj = obex_object_new(self->obex_ctx, OBEX_CMD_GET);
+	if (obj == NULL)
+		return -1;
+	hv.bs = CryptKey;
+	obex_object_addheader(self->obex_ctx, obj, OBEX_HDR_NAME, hv, 20, 0);
+	hv.bs = key->username;
+	obex_object_addheader(self->obex_ctx, obj, OBEX_HDR_CRYPTKEY, hv, 28, 0);
+	rsp = obex_request(self->obex_ctx, obj);
+	if ((rsp & ~OBEX_FINAL) == OBEX_RSP_SUCCESS) {
+		while (obex_object_getnextheader(self->obex_ctx, obj, &hi, &hv, &hv_size)) {
+			if (hi == OBEX_HDR_BODY) {
+				memcpy(key->key, hv.bs, 12);
+				break;
+			}
+		}
+	}
+	obex_object_delete(self->obex_ctx, obj);
+}
+
+int exword_cname(exword_t *self, char *name, char* dir)
+{
+	int rsp;
+	obex_headerdata_t hv;
+	int dir_length, name_length;
+	obex_object_t *obj = obex_object_new(self->obex_ctx, OBEX_CMD_PUT);
+	if (obj == NULL)
+		return -1;
+	dir_length = strlen(dir) + 1;
+	name_length = strlen(name) + 1;
+	hv.bs = CName;
+	obex_object_addheader(self->obex_ctx, obj, OBEX_HDR_NAME, hv, 14, 0);
+	hv.bq4 = dir_length + name_length;
+	obex_object_addheader(self->obex_ctx, obj, OBEX_HDR_LENGTH, hv, 0, 0);
+	hv.bs = dir;
+	obex_object_addheader(self->obex_ctx, obj, OBEX_HDR_BODY, hv, dir_length, 0);
+	hv.bs = name;
+	obex_object_addheader(self->obex_ctx, obj, OBEX_HDR_BODY, hv, name_length, 0);
+	rsp = obex_request(self->obex_ctx, obj);
+	obex_object_delete(self->obex_ctx, obj);
+}
+
+int exword_unlock(exword_t *self)
+{
+	int rsp;
+	obex_headerdata_t hv;
+	obex_object_t *obj = obex_object_new(self->obex_ctx, OBEX_CMD_PUT);
+	if (obj == NULL)
+		return -1;
+	hv.bs = Unlock;
+	obex_object_addheader(self->obex_ctx, obj, OBEX_HDR_NAME, hv, 16, 0);
+	hv.bq4 = 1;
+	obex_object_addheader(self->obex_ctx, obj, OBEX_HDR_LENGTH, hv, 0, 0);
+	hv.bs = "";
+	obex_object_addheader(self->obex_ctx, obj, OBEX_HDR_BODY, hv, 1, 0);
+	rsp = obex_request(self->obex_ctx, obj);
+	obex_object_delete(self->obex_ctx, obj);
+	return rsp;
+}
+
+int exword_lock(exword_t *self)
+{
+	int rsp;
+	obex_headerdata_t hv;
+	obex_object_t *obj = obex_object_new(self->obex_ctx, OBEX_CMD_PUT);
+	if (obj == NULL)
+		return -1;
+	hv.bs = Lock;
+	obex_object_addheader(self->obex_ctx, obj, OBEX_HDR_NAME, hv, 12, 0);
+	hv.bq4 = 1;
+	obex_object_addheader(self->obex_ctx, obj, OBEX_HDR_LENGTH, hv, 0, 0);
+	hv.bs = "";
+	obex_object_addheader(self->obex_ctx, obj, OBEX_HDR_BODY, hv, 1, 0);
+	rsp = obex_request(self->obex_ctx, obj);
+	obex_object_delete(self->obex_ctx, obj);
+	return rsp;
+}
+
+int exword_authchallenge(exword_t *self, exword_authchallenge_t challenge)
+{
+	int rsp;
+	obex_headerdata_t hv;
+	obex_object_t *obj = obex_object_new(self->obex_ctx, OBEX_CMD_PUT);
+	if (obj == NULL)
+		return -1;
+	hv.bs = AuthChallenge;
+	obex_object_addheader(self->obex_ctx, obj, OBEX_HDR_NAME, hv, 30, 0);
+	hv.bq4 = 20;
+	obex_object_addheader(self->obex_ctx, obj, OBEX_HDR_LENGTH, hv, 0, 0);
+	hv.bs = challenge.challenge;
+	obex_object_addheader(self->obex_ctx, obj, OBEX_HDR_BODY, hv, 20, 0);
+	rsp = obex_request(self->obex_ctx, obj);
+	obex_object_delete(self->obex_ctx, obj);
+	return rsp;
+}
+
+int exword_authinfo(exword_t *self, exword_authinfo_t *info)
+{
+	int rsp;
+	obex_headerdata_t hv;
+	uint8_t hi;
+	uint32_t hv_size;
+	obex_object_t *obj = obex_object_new(self->obex_ctx, OBEX_CMD_GET);
+	if (obj == NULL)
+		return -1;
+	hv.bs = CryptKey;
+	obex_object_addheader(self->obex_ctx, obj, OBEX_HDR_NAME, hv, 20, 0);
+	hv.bs = info->cdkey;
+	obex_object_addheader(self->obex_ctx, obj, OBEX_HDR_AUTHINFO, hv, 40, 0);
+	rsp = obex_request(self->obex_ctx, obj);
+	if ((rsp & ~OBEX_FINAL) == OBEX_RSP_SUCCESS) {
+		while (obex_object_getnextheader(self->obex_ctx, obj, &hi, &hv, &hv_size)) {
+			if (hi == OBEX_HDR_BODY) {
+				memcpy(info->challenge, hv.bs, 20);
+				break;
+			}
+		}
+	}
+	obex_object_delete(self->obex_ctx, obj);
 }
 
 int exword_disconnect(exword_t *self)

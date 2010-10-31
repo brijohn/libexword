@@ -55,6 +55,34 @@ typedef struct {
 } exword_model_t;
 #pragma pack()
 
+#pragma pack(1)
+typedef struct {
+	char name[17];
+} exword_userid_t;
+#pragma pack()
+
+#pragma pack(1)
+typedef struct {
+	char challenge[20];
+} exword_authchallenge_t;
+#pragma pack()
+
+#pragma pack(1)
+typedef struct {
+	unsigned char cdkey[16];
+	unsigned char username[24];
+	char challenge[20];
+} exword_authinfo_t;
+#pragma pack()
+
+#pragma pack(1)
+typedef struct {
+	unsigned char username[16];
+	unsigned char directory[12];
+	unsigned char key[12];
+} exword_cryptkey_t;
+#pragma pack()
+
 char *exword_response_to_string(int rsp);
 void exword_set_debug(int level);
 exword_t * exword_open();
@@ -67,5 +95,12 @@ int exword_get_capacity(exword_t *self, exword_capacity_t *cap);
 int exword_sd_format(exword_t *self);
 int exword_setpath(exword_t *self, uint8_t *path, uint8_t flags);
 int exword_list(exword_t *self, directory_entry_t **entries, uint16_t *count);
+int exword_userid(exword_t *self, exword_userid_t id);
+int exword_cryptkey(exword_t *self, exword_cryptkey_t *key);
+int exword_cname(exword_t *self, char *name, char* dir);
+int exword_unlock(exword_t *self);
+int exword_lock(exword_t *self);
+int exword_authchallenge(exword_t *self, exword_authchallenge_t challenge);
+int exword_authinfo(exword_t *self, exword_authinfo_t *info);
 int exword_disconnect(exword_t *self);
 #endif

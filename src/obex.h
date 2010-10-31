@@ -75,6 +75,7 @@ extern int debug;
 #define OBEX_HDR_ID_AUTHCHAL	 0x0d	/* Authentication challenge */
 #define OBEX_HDR_ID_AUTHRESP	 0x0e	/* Authentication response */
 #define OBEX_HDR_ID_CREATOR	 0x0f	/* indicates the creator of an object */
+#define OBEX_HDR_ID_AUTHINFO	 0x30	/* get authentication info */
 #define OBEX_HDR_ID_CRYPTKEY	 0x31	/* file transfer key ?? */
 #define OBEX_HDR_ID_MASK	 0x3f
 
@@ -97,6 +98,7 @@ extern int debug;
 #define OBEX_HDR_AUTHRESP	(OBEX_HDR_ID_AUTHRESP     | OBEX_HDR_TYPE_BYTES  )
 #define OBEX_HDR_CREATOR	(OBEX_HDR_ID_CREATOR      | OBEX_HDR_TYPE_BYTES  )
 #define OBEX_HDR_CRYPTKEY	(OBEX_HDR_ID_CRYPTKEY     | OBEX_HDR_TYPE_BYTES  )
+#define OBEX_HDR_AUTHINFO	(OBEX_HDR_ID_AUTHINFO     | OBEX_HDR_TYPE_BYTES  )
 
 /* Commands */
 #define OBEX_CMD_CONNECT	0x00
