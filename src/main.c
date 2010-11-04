@@ -168,8 +168,6 @@ int display_capacity(exword_t *d)
 {
 	int rsp;
 	exword_capacity_t cap;
-	if (rsp != 0x20)
-		goto fail;
 	rsp = exword_get_capacity(d, &cap);
 	if (rsp != 0x20)
 		goto fail;
