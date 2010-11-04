@@ -5,3 +5,4 @@ dictionary               model           sub-model         usb id
 Dataplus 3 XD-GW9600     gy131,ON,0101   gy392             07cf:6101
 Dataplus 3 XD-SW4800     gy131,ON,0101   gy350             07cf:6101
 Dataplus 4 XD-SP9500     gy131,ON,0101   gy823             07cf:6101
+Dataplus 5 XD-A8500      gy131,ON,0101   gy999             07cf:6101
