@@ -33,11 +33,14 @@ typedef struct _exword exword_t;
 
 #define SETPATH_NOCREATE 0x02
 
+#define LIST_F_DIR     1
+#define LIST_F_UNICODE 2
+
 #pragma pack(1)
 typedef struct {
 	uint16_t size;   //size of structure
-	uint8_t  flags;  //flags 0 = file 1 = directory
-	uint8_t  name[13]; //name of entry 8.3 file names
+	uint8_t  flags;  //flags 0 = file 1 = directory 2 = unicode
+	uint8_t  name[26]; //name of entry 8.3 file names
 } directory_entry_t;
 #pragma pack()
 

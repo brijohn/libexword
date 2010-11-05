@@ -145,6 +145,25 @@ int write_file(char* filename, char *buffer, int len)
 	return 0x20;
 }
 
+void print_entry(directory_entry_t *entry)
+{
+	int i;
+	if (entry->flags & LIST_F_DIR)
+		printf("<");
+
+	if (entry->flags & LIST_F_UNICODE) {
+		for (i = 1; entry->name[i] != '\0'; i += 2) {
+			printf("%c", entry->name[i]);
+		}
+	} else {
+		printf("%s", entry->name);
+	}
+
+	if (entry->flags & LIST_F_DIR)
+		printf(">");
+	printf("\n");
+}
+
 int list_files(exword_t *d)
 {
 	int rsp, i;
@@ -154,10 +173,7 @@ int list_files(exword_t *d)
 	if (rsp != 0x20)
 		goto fail;
 	for (i = 0; i < len; i++) {
-		if (entries[i].flags)
-			printf("<%s>\n", entries[i].name);
-		else
-			printf("%s\n", entries[i].name);
+		print_entry(entries + i);
 	}
 	free(entries);
 fail:
