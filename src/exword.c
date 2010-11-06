@@ -21,6 +21,8 @@
 
 #include <stdlib.h>
 #include <stdio.h>
+#include <iconv.h>
+#include <errno.h>
 #include "obex.h"
 #include "exword.h"
 
@@ -47,23 +49,81 @@ struct _exword {
 	char product[20];
 };
 
-static int exword_char_to_unicode(uint8_t *uc, const uint8_t *c)
+static char * convert (iconv_t cd,
+		char **dst, int *dstsz,
+		const char *src, int srcsz)
 {
-	int len, n;
+	size_t inleft, outleft, converted = 0;
+	char *output, *outbuf, *tmp;
+	const char *inbuf;
+	size_t outlen;
 
+	inleft = srcsz;
+	inbuf = src;
 
-	len = n = strlen((char *) c);
+	outlen = inleft;
 
-	uc[n*2+1] = 0;
-	uc[n*2] = 0;
-
-	while (n--) {
-		uc[n*2+1] = c[n];
-		uc[n*2] = 0;
+	if (!(output = malloc(outlen))) {
+		return NULL;
 	}
 
-	return (len * 2) + 2;
+	do {
+		errno = 0;
+		outbuf = output + converted;
+		outleft = outlen - converted;
+		converted = iconv(cd, (char **) &inbuf, &inleft, &outbuf, &outleft);
+		if (converted != (size_t) -1 || errno == EINVAL)
+			break;
+
+		if (errno != E2BIG) {
+			free(output);
+			return NULL;
+		}
+
+		converted = outbuf - output;
+		outlen += inleft * 2;
+
+		if (!(tmp = realloc(output, outlen))) {
+			free(output);
+			return NULL;
+		}
+
+		output = tmp;
+	} while (1);
+	iconv(cd, NULL, NULL, &outbuf, &outleft);
+	if (dst  != NULL)
+		*dst = output;
+	if (dstsz != NULL)
+		*dstsz = (outbuf - output);
+	return output;
 }
+
+char * locale_to_utf16(char **dst, int *dstsz, const char *src, int srcsz)
+{
+	iconv_t cd;
+	*dst = NULL;
+	*dstsz = 0;
+	cd = iconv_open("UTF-16BE", "");
+	if (cd == (iconv_t) -1)
+		return NULL;
+	*dst = convert(cd, dst, dstsz, src, srcsz);
+	iconv_close(cd);
+	return *dst;
+}
+
+char * utf16_to_locale(char **dst, int *dstsz, const char *src, int srcsz)
+{
+	iconv_t cd;
+	*dst = NULL;
+	*dstsz = 0;
+	cd = iconv_open("", "UTF-16BE");
+	if (cd == (iconv_t) -1)
+		return NULL;
+	*dst = convert(cd, dst, dstsz, src, srcsz);
+	iconv_close(cd);
+	return *dst;
+}
+
 
 exword_t * exword_open()
 {
@@ -147,7 +207,8 @@ int exword_send_file(exword_t *self, char* filename, char *file_data, int length
 {
 	int len, rsp;
 	obex_headerdata_t hv;
-	uint8_t *unicode = malloc(strlen(filename) * 2 + 2);
+	char *unicode;
+	unicode = locale_to_utf16(&unicode, &len, filename, strlen(filename) + 1);
 	if (unicode == NULL)
 		return -1;
 	obex_object_t *obj = obex_object_new(self->obex_ctx, OBEX_CMD_PUT);
@@ -155,7 +216,6 @@ int exword_send_file(exword_t *self, char* filename, char *file_data, int length
 		free(unicode);
 		return -1;
 	}
-	len = exword_char_to_unicode(unicode, filename);
 	hv.bs = unicode;
 	obex_object_addheader(self->obex_ctx, obj, OBEX_HDR_NAME, hv, len, 0);
 	hv.bq4 = length;
@@ -174,10 +234,10 @@ int exword_get_file(exword_t *self, char* filename, char **file_data, int *lengt
 	obex_headerdata_t hv;
 	uint8_t hi;
 	uint32_t hv_size;
-	uint8_t *unicode;
+	char *unicode;
 	*length = 0;
 	*file_data = NULL;
-	unicode = malloc(strlen(filename) * 2 + 2);
+	unicode = locale_to_utf16(&unicode, &len, filename, strlen(filename) + 1);
 	if (unicode == NULL)
 		return -1;
 	obex_object_t *obj = obex_object_new(self->obex_ctx, OBEX_CMD_GET);
@@ -185,7 +245,6 @@ int exword_get_file(exword_t *self, char* filename, char **file_data, int *lengt
 		free(unicode);
 		return -1;
 	}
-	len = exword_char_to_unicode(unicode, filename);
 	hv.bs = unicode;
 	obex_object_addheader(self->obex_ctx, obj, OBEX_HDR_NAME, hv, len, 0);
 	rsp = obex_request(self->obex_ctx, obj);
@@ -250,7 +309,8 @@ int exword_setpath(exword_t *self, uint8_t *path, uint8_t flags)
 	int len, rsp;
 	uint8_t non_hdr[2] = {flags, 0x00};
 	obex_headerdata_t hv;
-	uint8_t *unicode = malloc(strlen(path) * 2 + 2);
+	char *unicode;
+	unicode = locale_to_utf16(&unicode, &len, path, strlen(path) + 1);
 	if (unicode == NULL)
 		return -1;
 	obex_object_t *obj = obex_object_new(self->obex_ctx, OBEX_CMD_SETPATH);
@@ -262,7 +322,6 @@ int exword_setpath(exword_t *self, uint8_t *path, uint8_t flags)
 		len = 0;
 		hv.bs = path;
 	} else {
-		len = exword_char_to_unicode(unicode, path);
 		hv.bs = unicode;
 	}
 	obex_object_set_nonhdr_data(obj, non_hdr, 2);

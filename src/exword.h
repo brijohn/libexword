@@ -86,6 +86,8 @@ typedef struct {
 } exword_cryptkey_t;
 #pragma pack()
 
+char * utf16_to_locale(char **dst, int *dstsz, const char *src, int srcsz);
+char * locale_to_utf16(char **dst, int *dstsz, const char *src, int srcsz);
 char *exword_response_to_string(int rsp);
 void exword_set_debug(int level);
 exword_t * exword_open();

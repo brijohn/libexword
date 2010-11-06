@@ -25,6 +25,7 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <string.h>
+#include <locale.h>
 #include <readline/readline.h>
 #include <readline/history.h>
 #include "exword.h"
@@ -147,21 +148,17 @@ int write_file(char* filename, char *buffer, int len)
 
 void print_entry(directory_entry_t *entry)
 {
-	int i;
-	if (entry->flags & LIST_F_DIR)
-		printf("<");
-
+	int len;
+	char * name;
 	if (entry->flags & LIST_F_UNICODE) {
-		for (i = 1; entry->name[i] != '\0'; i += 2) {
-			printf("%c", entry->name[i]);
-		}
+		name = utf16_to_locale(&name, &len, entry->name, entry->size - 3);
 	} else {
-		printf("%s", entry->name);
+		name = entry->name;
 	}
-
 	if (entry->flags & LIST_F_DIR)
-		printf(">");
-	printf("\n");
+		printf("<%s>\n", name);
+	else
+		printf("%s\n", name);
 }
 
 int list_files(exword_t *d)
@@ -479,6 +476,9 @@ int main(int argc, const char** argv)
 	exword_t *device;
 	int rsp;
 	optCon = poptGetContext(NULL, argc, argv, options, 0);
+
+	setlocale(LC_ALL, "");
+
 	if (poptGetNextOpt(optCon) < -1)
 		usage(optCon, 1, NULL);
 
