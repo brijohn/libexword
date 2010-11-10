@@ -127,12 +127,26 @@ char * utf16_to_locale(char **dst, int *dstsz, const char *src, int srcsz)
 
 exword_t * exword_open()
 {
+	return exword_open2(0x0000);
+}
+
+exword_t * exword_open2(uint16_t options)
+{
 	int i;
 	ssize_t ret;
+	uint8_t ver, locale;
 	struct libusb_device_descriptor desc;
 	libusb_device **dev_list = NULL;
 	libusb_device *device = NULL;
 	libusb_device_handle *dev = NULL;
+
+	locale = options & 0xff;
+	if (options & OPEN_TEXT)
+		ver = locale;
+	else if (options & OPEN_CD)
+		ver = 0xf0;
+	else
+		ver = 0x11;
 
 	exword_t *self = malloc(sizeof(exword_t));
 	if (self == NULL)
@@ -168,7 +182,7 @@ exword_t * exword_open()
 	self->obex_ctx = obex_init(self->vid, self->pid);
 	if (self->obex_ctx == NULL)
 		goto error;
-
+	obex_set_connect_info(self->obex_ctx, ver, locale);
 	return self;
 
 error:

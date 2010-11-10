@@ -57,6 +57,7 @@
 
 uint8_t  debug_level;
 uint16_t command;
+uint16_t open_opts;
 char    *filename;
 char    *sd_path;
 char    *mem_path;
@@ -292,14 +293,14 @@ int disconnect(exword_t *d)
 
 int parse_commandline(char *cmdl)
 {
-	int ret = 0, r1, r2;
+	int ret = 0, r1;
 	char *cmd = NULL;
 	command &= ~CMD_MASK;
 	sscanf(cmdl, "%ms", &cmd);
 
 	if (strcmp(cmd, "help") == 0) {
 		printf("Commands:\n");
-		printf("connect                   - connect to attached dictionary\n");
+		printf("connect [type] [locale]   - connect to attached dictionary\n");
 		printf("disconnect                - disconnect to dictionary\n");
 		printf("model                     - print model\n");
 		printf("setpath <sd|mem>://<path> - switch storage medium\n");
@@ -310,7 +311,50 @@ int parse_commandline(char *cmdl)
 		printf("send    <filename>        - upload filename\n");
 		printf("debug   <number>          - set debug level (0-5)\n");
 	} else if (strcmp(cmd, "connect") == 0) {
-		command |= CMD_CONNECT;
+		char type[10];
+		char locale[3];
+		int error = 0;
+		open_opts = 0;
+		r1 = sscanf(cmdl, "%*s %10s %2s", type, locale);
+		if (r1 <= 0) {
+			open_opts = OPEN_LIBRARY|LOCALE_JA;
+		} else {
+			if (strcmp(type, "library") == 0) {
+				open_opts |= OPEN_LIBRARY;
+			} else if (strcmp(type, "text") == 0) {
+				open_opts |= OPEN_TEXT;
+			} else if (strcmp(type, "cd") == 0) {
+				open_opts |= OPEN_CD;
+			} else {
+				printf("Unknown 'type': %s\n", type);
+				error = 1;
+			}
+			if (!error && r1 > 1) {
+				if (strcmp(locale, "ja") == 0) {
+					open_opts |= LOCALE_JA;
+				} else if (strcmp(locale, "kr") == 0) {
+					open_opts |= LOCALE_KR;
+				} else if (strcmp(locale, "cn") == 0) {
+					open_opts |= LOCALE_CN;
+				} else if (strcmp(locale, "de") == 0) {
+					open_opts |= LOCALE_DE;
+				} else if (strcmp(locale, "es") == 0) {
+					open_opts |= LOCALE_ES;
+				} else if (strcmp(locale, "fr") == 0) {
+					open_opts |= LOCALE_FR;
+				} else if (strcmp(locale, "ru") == 0) {
+					open_opts |= LOCALE_RU;
+				} else {
+					printf("Unknown 'locale': %s\n", locale);
+					error = 1;
+				}
+			} else {
+				open_opts |= LOCALE_JA;
+			}
+				
+		}
+		if (!error)
+			command |= CMD_CONNECT;
 	} else if (strcmp(cmd, "setpath") == 0) {
 		free(sd_path);
 		sd_path = NULL;
@@ -393,7 +437,7 @@ void interactive() {
 		switch(command & CMD_MASK) {
 		case CMD_CONNECT:
 			printf("connecting to device...");
-			handle = exword_open();
+			handle = exword_open2(open_opts);
 			if (handle == NULL) {
 				printf("device not found\n");
 			} else {

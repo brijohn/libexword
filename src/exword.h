@@ -36,6 +36,19 @@ typedef struct _exword exword_t;
 #define LIST_F_DIR     1
 #define LIST_F_UNICODE 2
 
+#define LOCALE_NONE    0x00
+#define LOCALE_JA      0x20
+#define LOCALE_KR      0x40
+#define LOCALE_CN      0x60
+#define LOCALE_DE      0x80
+#define LOCALE_ES      0xa0
+#define LOCALE_FR      0xc0
+#define LOCALE_RU      0xe0
+
+#define OPEN_LIBRARY   0x0000
+#define OPEN_TEXT      0x0100
+#define OPEN_CD        0x0200
+
 #pragma pack(1)
 typedef struct {
 	uint16_t size;   //size of structure
@@ -91,6 +104,7 @@ char * locale_to_utf16(char **dst, int *dstsz, const char *src, int srcsz);
 char *exword_response_to_string(int rsp);
 void exword_set_debug(int level);
 exword_t * exword_open();
+exword_t * exword_open2(uint16_t options);
 void exword_close(exword_t *self);
 int exword_connect(exword_t *self);
 int exword_send_file(exword_t *self, char* filename, char *buffer, int len);

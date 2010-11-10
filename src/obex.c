@@ -525,6 +525,8 @@ obex_t * obex_init(uint16_t vid, uint16_t pid)
 
 	self->seq_num = 0;
 	self->debug = 0;
+	self->version = OBEX_VERSION;
+	self->locale = 0x00;
 	self->mtu_rx = OBEX_DEFAULT_MTU;
 	self->mtu_tx = OBEX_DEFAULT_MTU;
 	self->mtu_tx_max = OBEX_MAXIMUM_MTU;
@@ -566,6 +568,12 @@ void obex_cleanup(obex_t *self)
 	}
 }
 
+void obex_set_connect_info(obex_t *self, uint8_t ver, uint8_t locale)
+{
+	self->version = ver;
+	self->locale  = locale;
+}
+
 obex_object_t * obex_object_new(obex_t *self, uint8_t cmd)
 {
 	obex_object_t *object;
@@ -594,10 +602,11 @@ obex_object_t * obex_object_new(obex_t *self, uint8_t cmd)
 			object = NULL;
 		} else {
 			conn_hdr = (struct obex_connect_hdr *) buf_reserve_end(object->tx_nonhdr_data, 7);
-			conn_hdr->version = OBEX_VERSION;
-			conn_hdr->flags = 0x00;              /* Flags */
+			conn_hdr->version = self->version;
+			conn_hdr->flags = 0x40;              /* Flags */
 			conn_hdr->mtu = htons(self->mtu_rx); /* Max packet size */
-			memcpy(conn_hdr->unknown, "\x40\x00\x20", 3); //unkown data sent during connect
+			memcpy(conn_hdr->unknown, "\x40\x00", 2); //unkown data sent during connect
+			conn_hdr->locale = self->locale;
 		}
 	}
 	return object;

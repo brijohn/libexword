@@ -49,7 +49,7 @@ extern int debug;
 
 #define OBEX_OBJECT_ALLOCATIONTRESHOLD 10240
 
-#define OBEX_VERSION		0x20
+#define OBEX_VERSION		0x11
 
 #define OBEX_FL_FIT_ONE_PACKET	0x01	/* This header must fit in one packet */
 
@@ -166,6 +166,8 @@ typedef struct {
 	uint8_t intf_num;
 	uint8_t read_endpoint_address;
 	uint8_t write_endpoint_address;
+	uint8_t version;
+	uint8_t locale;
 	uint16_t mtu_rx;
 	uint16_t mtu_tx;
 	uint16_t mtu_tx_max;
@@ -195,7 +197,8 @@ struct obex_connect_hdr {
 	uint8_t  version;
 	uint8_t  flags;
 	uint16_t mtu;
-	uint8_t  unknown[3];
+	uint8_t  unknown[2];
+	uint8_t  locale;
 };
 #pragma pack()
 
@@ -262,6 +265,7 @@ typedef struct {
 
 obex_t * obex_init(uint16_t vid, uint16_t pid);
 void obex_cleanup(obex_t *self);
+void obex_set_connect_info(obex_t *self, uint8_t ver, uint8_t locale);
 obex_object_t * obex_object_new(obex_t *self, uint8_t cmd);
 int obex_object_delete(obex_t *self, obex_object_t *object);
 int obex_object_add_header(obex_t *self, obex_object_t *object,
