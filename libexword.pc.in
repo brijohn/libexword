@@ -1,0 +1,11 @@
+prefix=@prefix@
+exec_prefix=@exec_prefix@
+libdir=@libdir@
+includedir=@includedir@
+
+Name: libexword
+Description: C library for communicating with Casio EX-Word dictionaries.
+Requires.private: libusb-1.0
+Version: @PACKAGE_VERSION@
+Libs: -L${libdir} -lexword
+Cflags: -I${includedir}

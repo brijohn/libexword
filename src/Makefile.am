@@ -1,3 +1,4 @@
+LIBEXWORD_LIBRARY_VERSION=1:0:0
 lib_LTLIBRARIES = libexword.la
 bin_PROGRAMS = exword
 libexword_la_SOURCES =	exword.c \
@@ -15,11 +16,13 @@ libexword_la_CFLAGS = \
         $(WARN_CFLAGS)          \
         $(AM_CFLAGS)
 
+libexword_la_LDFLAGS = -version-info $(LIBEXWORD_LIBRARY_VERSION)
+libexword_la_LIBADD = $(USB_LIBS)
+
 exword_SOURCES = main.c
 exword_CFLAGS = \
-        $(USB_CFLAGS)        \
         $(WARN_CFLAGS)          \
         $(AM_CFLAGS)
 
 exword_LDFLAGS = $(AM_LDFLAGS)
-exword_LDADD = $(USB_LIBS) libexword.la -lpopt
+exword_LDADD = $(READLINE_LIBS) $(POPT_LIBS) libexword.la
