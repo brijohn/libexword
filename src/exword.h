@@ -108,6 +108,7 @@ exword_t * exword_open2(uint16_t options);
 void exword_close(exword_t *self);
 int exword_connect(exword_t *self);
 int exword_send_file(exword_t *self, char* filename, char *buffer, int len);
+int exword_get_file(exword_t *self, char* filename, char **buffer, int *len);
 int exword_remove_file(exword_t *self, char* filename);
 int exword_get_model(exword_t *self, exword_model_t * model);
 int exword_get_capacity(exword_t *self, exword_capacity_t *cap);

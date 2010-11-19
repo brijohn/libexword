@@ -217,12 +217,12 @@ int exword_connect(exword_t *self)
 	return rsp;
 }
 
-int exword_send_file(exword_t *self, char* filename, char *file_data, int length)
+int exword_send_file(exword_t *self, char* filename, char *buffer, int len)
 {
-	int len, rsp;
+	int length, rsp;
 	obex_headerdata_t hv;
 	char *unicode;
-	unicode = locale_to_utf16(&unicode, &len, filename, strlen(filename) + 1);
+	unicode = locale_to_utf16(&unicode, &length, filename, strlen(filename) + 1);
 	if (unicode == NULL)
 		return -1;
 	obex_object_t *obj = obex_object_new(self->obex_ctx, OBEX_CMD_PUT);
@@ -231,27 +231,27 @@ int exword_send_file(exword_t *self, char* filename, char *file_data, int length
 		return -1;
 	}
 	hv.bs = unicode;
-	obex_object_addheader(self->obex_ctx, obj, OBEX_HDR_NAME, hv, len, 0);
-	hv.bq4 = length;
+	obex_object_addheader(self->obex_ctx, obj, OBEX_HDR_NAME, hv, length, 0);
+	hv.bq4 = len;
 	obex_object_addheader(self->obex_ctx, obj, OBEX_HDR_LENGTH, hv, 0, 0);
-	hv.bs = file_data;
-	obex_object_addheader(self->obex_ctx, obj, OBEX_HDR_BODY, hv, length, 0);
+	hv.bs = buffer;
+	obex_object_addheader(self->obex_ctx, obj, OBEX_HDR_BODY, hv, len, 0);
 	rsp = obex_request(self->obex_ctx, obj);
 	obex_object_delete(self->obex_ctx, obj);
 	free(unicode);
 	return rsp;
 }
 
-int exword_get_file(exword_t *self, char* filename, char **file_data, int *length)
+int exword_get_file(exword_t *self, char* filename, char **buffer, int *len)
 {
-	int len, rsp;
+	int length, rsp;
 	obex_headerdata_t hv;
 	uint8_t hi;
 	uint32_t hv_size;
 	char *unicode;
-	*length = 0;
-	*file_data = NULL;
-	unicode = locale_to_utf16(&unicode, &len, filename, strlen(filename) + 1);
+	*len = 0;
+	*buffer = NULL;
+	unicode = locale_to_utf16(&unicode, &length, filename, strlen(filename) + 1);
 	if (unicode == NULL)
 		return -1;
 	obex_object_t *obj = obex_object_new(self->obex_ctx, OBEX_CMD_GET);
@@ -260,16 +260,16 @@ int exword_get_file(exword_t *self, char* filename, char **file_data, int *lengt
 		return -1;
 	}
 	hv.bs = unicode;
-	obex_object_addheader(self->obex_ctx, obj, OBEX_HDR_NAME, hv, len, 0);
+	obex_object_addheader(self->obex_ctx, obj, OBEX_HDR_NAME, hv, length, 0);
 	rsp = obex_request(self->obex_ctx, obj);
 	if ((rsp & ~OBEX_FINAL) == OBEX_RSP_SUCCESS) {
 		while (obex_object_getnextheader(self->obex_ctx, obj, &hi, &hv, &hv_size)) {
 			if (hi == OBEX_HDR_LENGTH) {
-				*length = hv.bq4;
-				*file_data = malloc(*length);
+				*len = hv.bq4;
+				*buffer = malloc(*len);
 			}
 			if (hi == OBEX_HDR_BODY) {
-				memcpy(*file_data, hv.bs, *length);
+				memcpy(*buffer, hv.bs, *len);
 				break;
 			}
 		}
