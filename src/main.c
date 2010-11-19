@@ -26,6 +26,7 @@
 #include <fcntl.h>
 #include <string.h>
 #include <locale.h>
+#include <libgen.h>
 #include <readline/readline.h>
 #include <readline/history.h>
 #include "exword.h"
@@ -383,7 +384,7 @@ int parse_commandline(char *cmdl)
 				command |= CMD_GET;
 		}
 	} else if(strcmp(cmd, "debug") == 0) {
-		if (sscanf(cmdl, "debug %u", &debug_level) < 1)
+		if (sscanf(cmdl, "debug %hhu", &debug_level) < 1)
 			printf("Requires debug level\n");
 		else if (debug_level > 5)
 			printf("Value should be between 0 and 5\n");
