@@ -27,12 +27,18 @@
 
 static int obex_bulk_read(obex_t *self, buf_t *msg)
 {
-	int actual_length, retval;
+	int retval, actual_length;
+	int expected_length;
+	char * buffer;
 	DEBUG(self, 4, "Read from endpoint %d\n", self->read_endpoint_address);
-	retval = libusb_bulk_transfer(self->usb_dev, self->read_endpoint_address, buf_reserve_end(msg, self->mtu_rx), self->mtu_rx, &actual_length, 1245);
-	buf_remove_end(msg, self->mtu_rx - actual_length);
+	do {
+		buffer = buf_reserve_end(msg, self->mtu_rx);
+		retval = libusb_bulk_transfer(self->usb_dev, self->read_endpoint_address, buffer, self->mtu_rx, &actual_length, 1245);
+		buf_remove_end(msg, self->mtu_rx - actual_length);
+		expected_length = ntohs(*((uint16_t*)(msg->data + 1)));
+	} while (expected_length != msg->data_size && actual_length > 0);
 	if (retval == 0)
-		retval = actual_length;
+		retval = msg->data_size;
 	return retval;
 }
 
@@ -340,8 +346,9 @@ int obex_object_receive(obex_t *self, obex_object_t *object)
 
 	msg = self->rx_msg;
 	ret = obex_bulk_read(self, msg);
-	if (ret <= 0)
+	if (ret < 0) {
 		return ret;
+	}
 
 	hdr = (struct obex_rsp_hdr *) msg->data;
 	/* New data has been inserted at the end of message */
