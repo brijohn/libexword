@@ -146,7 +146,7 @@ exword_t * exword_open2(uint16_t options)
 	else if (options & OPEN_CD)
 		ver = 0xf0;
 	else
-		ver = 0x11;
+		ver = locale - 0x0f;
 
 	exword_t *self = malloc(sizeof(exword_t));
 	if (self == NULL)

@@ -36,7 +36,6 @@ typedef struct _exword exword_t;
 #define LIST_F_DIR     1
 #define LIST_F_UNICODE 2
 
-#define LOCALE_NONE    0x00
 #define LOCALE_JA      0x20
 #define LOCALE_KR      0x40
 #define LOCALE_CN      0x60
