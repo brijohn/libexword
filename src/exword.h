@@ -52,7 +52,7 @@ typedef struct _exword exword_t;
 typedef struct {
 	uint16_t size;   //size of structure
 	uint8_t  flags;  //flags 0 = file 1 = directory 2 = unicode
-	uint8_t  name[26]; //name of entry 8.3 file names
+	uint8_t  *name;  //name of entry
 } directory_entry_t;
 #pragma pack()
 
@@ -114,6 +114,7 @@ int exword_get_capacity(exword_t *self, exword_capacity_t *cap);
 int exword_sd_format(exword_t *self);
 int exword_setpath(exword_t *self, uint8_t *path, uint8_t flags);
 int exword_list(exword_t *self, directory_entry_t **entries, uint16_t *count);
+int exword_free_list(directory_entry_t *entries);
 int exword_userid(exword_t *self, exword_userid_t id);
 int exword_cryptkey(exword_t *self, exword_cryptkey_t *key);
 int exword_cname(exword_t *self, char *name, char* dir);

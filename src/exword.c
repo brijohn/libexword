@@ -415,12 +415,14 @@ int exword_list(exword_t *self, directory_entry_t **entries, uint16_t *count)
 			if (hi == OBEX_HDR_BODY) {
 				*count = ntohs(*(uint16_t*)hv.bs);
 				hv.bs += 2;
-				*entries = malloc(sizeof(directory_entry_t) * *count);
-				memset(*entries, 0, sizeof(directory_entry_t) * *count);
+				*entries = malloc(sizeof(directory_entry_t) * (*count + 1));
+				memset(*entries, 0, sizeof(directory_entry_t) * (*count + 1));
 				for (i = 0; i < *count; i++) {
 					size = ntohs(*(uint16_t*)hv.bs);
-					memcpy(*entries + i, hv.bs, size);
 					(*entries)[i].size = size;
+					(*entries)[i].flags = hv.bs[2];
+					(*entries)[i].name = malloc(size - 3);
+					memcpy((*entries)[i].name, hv.bs + 3, size - 3);
 					hv.bs += size;
 				}
 				break;
@@ -429,6 +431,15 @@ int exword_list(exword_t *self, directory_entry_t **entries, uint16_t *count)
 	}
 	obex_object_delete(self->obex_ctx, obj);
 	return rsp;
+}
+
+int exword_free_list(directory_entry_t *entries)
+{
+	int i;
+	for (i = 0; entries[i].name != NULL; i++) {
+		free(entries[i].name);
+	}
+	free(entries);
 }
 
 int exword_userid(exword_t *self, exword_userid_t id)

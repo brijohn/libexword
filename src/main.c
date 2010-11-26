@@ -174,7 +174,7 @@ int list_files(exword_t *d)
 	for (i = 0; i < len; i++) {
 		print_entry(entries + i);
 	}
-	free(entries);
+	exword_free_list(entries);
 fail:
 	return rsp;
 }
