@@ -98,10 +98,13 @@ typedef struct {
 } exword_cryptkey_t;
 #pragma pack()
 
+typedef void (*file_cb)(char *, uint32_t, uint32_t, void *);
+
 char * utf16_to_locale(char **dst, int *dstsz, const char *src, int srcsz);
 char * locale_to_utf16(char **dst, int *dstsz, const char *src, int srcsz);
 char *exword_response_to_string(int rsp);
 void exword_set_debug(int level);
+void exword_register_callbacks(exword_t *self, file_cb get, file_cb put, void *userdata);
 exword_t * exword_open();
 exword_t * exword_open2(uint16_t options);
 void exword_close(exword_t *self);

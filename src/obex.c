@@ -581,6 +581,12 @@ void obex_set_connect_info(obex_t *self, uint8_t ver, uint8_t locale)
 	self->locale  = locale;
 }
 
+void obex_register_callback(obex_t *self, obex_callback cb, void *userdata)
+{
+	self->callback = cb;
+	self->cb_userdata = userdata;
+}
+
 obex_object_t * obex_object_new(obex_t *self, uint8_t cmd)
 {
 	obex_object_t *object;
@@ -803,6 +809,8 @@ int obex_request(obex_t *self, obex_object_t *object)
 		if (ret < 0)
 			return ret;
 		rsp = obex_object_receive(self, object);
+		if (self->callback)
+			self->callback(self, object, self->cb_userdata);
 	} while (rsp == OBEX_RSP_CONTINUE);
 	return rsp;
 }

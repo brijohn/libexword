@@ -40,13 +40,19 @@ const char CryptKey[] = {0,'_',0,'C',0,'r',0,'y',0,'p',0,'t',0,'K',0,'e',0,'y',0
 const char AuthChallenge[] = {0,'_',0,'A', 0, 'u', 0, 't', 0, 'h', 0, 'C', 0, 'h', 0, 'a', 0, 'l', 0, 'l', 0, 'e', 0, 'n', 0, 'g', 0, 'e', 0, 0};
 const char AuthInfo[] = {0,'_',0,'A', 0, 'u', 0, 't', 0, 'h', 0, 'I', 0, 'n', 0, 'f', 0, 'o', 0, 0};
 
-
 struct _exword {
 	obex_t *obex_ctx;
 	uint16_t vid;
 	uint16_t pid;
 	char manufacturer[20];
 	char product[20];
+
+	file_cb put_file_cb;
+	file_cb get_file_cb;
+	void * cb_userdata;
+	char * cb_filename;
+	uint32_t cb_filelength;
+	uint32_t cb_transferred;
 };
 
 static char * convert (iconv_t cd,
@@ -124,6 +130,98 @@ char * utf16_to_locale(char **dst, int *dstsz, const char *src, int srcsz)
 	return *dst;
 }
 
+int is_cmd(char *data, int length)
+{
+	if (length == 10) {
+		if (memcmp(data, Cap, 10) == 0)
+			return 1;
+	}
+	if (length == 12) {
+		if (memcmp(data, List, 12) == 0 ||
+		    memcmp(data, Lock, 12) == 0)
+			return 1;
+	}
+	if (length == 14) {
+		if (memcmp(data, Model, 14) == 0 ||
+		    memcmp(data, CName, 14) == 0)
+			return 1;
+	}
+	if (length == 16) {
+		if (memcmp(data, Remove, 16) == 0 ||
+		    memcmp(data, UserId, 16) == 0 ||
+		    memcmp(data, Unlock, 16) == 0)
+			return 1;
+	}
+	if (length == 20) {
+		if (memcmp(data, SdFormat, 20) == 0 ||
+		    memcmp(data, CryptKey, 20) == 0 ||
+		    memcmp(data, AuthInfo, 20) == 0)
+			return 1;
+	}
+	if (length == 30) {
+		if (memcmp(data, AuthChallenge, 30) == 0)
+			return 1;
+	}
+	return 0;
+}
+
+void exword_handle_callbacks(obex_t *self, obex_object_t *object, void *userdata)
+{
+	exword_t *exword = (exword_t*)userdata;
+	char *tx_buffer = self->tx_msg->data;
+	int len;
+	struct list_head *pos;
+	struct obex_header_element *h;
+	struct obex_unicode_hdr * hdr;
+	if (!exword)
+		return;
+	if (object->opcode == OBEX_CMD_PUT && exword->put_file_cb) {
+		hdr = (struct obex_unicode_hdr *)(tx_buffer + 4);
+		if (hdr->hi == OBEX_HDR_NAME &&
+		    !is_cmd(hdr->hv, ntohs(hdr->hl) - 3)) {
+			free(exword->cb_filename);
+			utf16_to_locale(&exword->cb_filename, &len, hdr->hv, ntohs(hdr->hl) - 3);
+			exword->cb_filelength = ntohl(*((uint32_t*)(tx_buffer + ntohs(hdr->hl) + 5)));
+			exword->cb_transferred = 0;
+			hdr = (struct obex_unicode_hdr *)(tx_buffer + ntohs(hdr->hl) + 9);
+		}
+		if (hdr->hi == OBEX_HDR_BODY || hdr->hi == OBEX_HDR_BODY_END) {
+			exword->cb_transferred += ntohs(hdr->hl) - 3;
+			exword->put_file_cb(exword->cb_filename,
+					    exword->cb_transferred,
+					    exword->cb_filelength,
+					    exword->cb_userdata);
+		}
+	} else if (object->opcode == OBEX_CMD_GET && exword->get_file_cb) {
+		hdr = (struct obex_unicode_hdr *)(tx_buffer + 4);
+		if ((tx_buffer[2] != 0 || tx_buffer[3] != 3) && hdr->hi == OBEX_HDR_NAME) {
+			if (!is_cmd(hdr->hv, ntohs(hdr->hl) - 3)) {
+				free(exword->cb_filename);
+				utf16_to_locale(&exword->cb_filename, &len, hdr->hv, ntohs(hdr->hl) - 3);
+			} else {
+				free(exword->cb_filename);
+				exword->cb_filename = NULL;
+			}
+		}
+		if (exword->cb_filename) {
+			if (object->rx_body)
+				exword->cb_transferred = object->rx_body->data_size;
+			if (!list_empty(&object->rx_headerq)) {
+				list_for_each(pos, &object->rx_headerq) {
+					h = list_entry(pos, struct obex_header_element, link);
+					if (h->hi == OBEX_HDR_LENGTH)
+						exword->cb_filelength = ntohl(*((uint32_t*) h->buf->data));
+					if (h->hi == OBEX_HDR_BODY)
+						exword->cb_transferred = h->length;
+				}
+			}
+			exword->get_file_cb(exword->cb_filename,
+					    exword->cb_transferred,
+					    exword->cb_filelength,
+					    exword->cb_userdata);
+		}
+	}
+}
 
 exword_t * exword_open()
 {
@@ -151,7 +249,7 @@ exword_t * exword_open2(uint16_t options)
 	exword_t *self = malloc(sizeof(exword_t));
 	if (self == NULL)
 		return NULL;
-
+	memset(self, 0, sizeof(exword_t));
 	ret = libusb_init(NULL);
 	if (ret < 0)
 		goto error;
@@ -183,6 +281,7 @@ exword_t * exword_open2(uint16_t options)
 	if (self->obex_ctx == NULL)
 		goto error;
 	obex_set_connect_info(self->obex_ctx, ver, locale);
+	obex_register_callback(self->obex_ctx, exword_handle_callbacks, self);
 	return self;
 
 error:
@@ -197,6 +296,7 @@ void exword_close(exword_t *self)
 {
 	if (self) {
 		obex_cleanup(self->obex_ctx);
+		free(self->cb_filename);
 		free(self);
 	}
 }
@@ -204,6 +304,13 @@ void exword_close(exword_t *self)
 void exword_set_debug(int level)
 {
 	debug = level;
+}
+
+void exword_register_callbacks(exword_t *self, file_cb get, file_cb put, void *userdata)
+{
+	self->put_file_cb = put;
+	self->get_file_cb = get;
+	self->cb_userdata = userdata;
 }
 
 int exword_connect(exword_t *self)

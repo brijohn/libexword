@@ -154,13 +154,17 @@ extern int debug;
 #define OBEX_MINIMUM_MTU	255
 #define OBEX_MAXIMUM_MTU	65535
 
+struct _obex_object;
+struct _obex;
+typedef void (*obex_callback)(struct _obex *, struct _obex_object *, void *);
+
 typedef union {
 	uint32_t bq4;
 	uint8_t bq1;
 	const uint8_t *bs;
 } obex_headerdata_t;
 
-typedef struct {
+typedef struct _obex {
 	struct libusb_context *usb_ctx;
 	struct libusb_device_handle *usb_dev;
 	uint8_t intf_num;
@@ -175,6 +179,8 @@ typedef struct {
 	buf_t *rx_msg;
 	int debug;
 	uint8_t seq_num;
+	obex_callback callback;
+	void * cb_userdata;
 } obex_t;
 
 #pragma pack(1)
@@ -236,7 +242,7 @@ struct obex_header_element {
 	struct list_head link;
 };
 
-typedef struct {
+typedef struct _obex_object {
 	time_t time;
 
 	struct list_head tx_headerq;		/* List of headers to transmit*/
@@ -266,6 +272,7 @@ typedef struct {
 obex_t * obex_init(uint16_t vid, uint16_t pid);
 void obex_cleanup(obex_t *self);
 void obex_set_connect_info(obex_t *self, uint8_t ver, uint8_t locale);
+void obex_register_callback(obex_t *self, obex_callback cb, void * userdata);
 obex_object_t * obex_object_new(obex_t *self, uint8_t cmd);
 int obex_object_delete(obex_t *self, obex_object_t *object);
 int obex_object_add_header(obex_t *self, obex_object_t *object,
