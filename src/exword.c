@@ -127,7 +127,7 @@ char * utf16_to_locale(char **dst, int *dstsz, const char *src, int srcsz)
 
 exword_t * exword_open()
 {
-	return exword_open2(0x0000);
+	return exword_open2(0x0020);
 }
 
 exword_t * exword_open2(uint16_t options)
