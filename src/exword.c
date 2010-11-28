@@ -598,21 +598,26 @@ int exword_cname(exword_t *self, char *name, char* dir)
 	int rsp;
 	obex_headerdata_t hv;
 	int dir_length, name_length;
+	char *buffer;
 	obex_object_t *obj = obex_object_new(self->obex_ctx, OBEX_CMD_PUT);
 	if (obj == NULL)
 		return -1;
 	dir_length = strlen(dir) + 1;
 	name_length = strlen(name) + 1;
+	buffer = malloc(dir_length + name_length);
+	if (buffer == NULL)
+		return -1;
+	memcpy(buffer, dir, dir_length);
+	memcpy(buffer + dir_length, name, name_length);
 	hv.bs = CName;
 	obex_object_addheader(self->obex_ctx, obj, OBEX_HDR_NAME, hv, 14, 0);
 	hv.bq4 = dir_length + name_length;
 	obex_object_addheader(self->obex_ctx, obj, OBEX_HDR_LENGTH, hv, 0, 0);
-	hv.bs = dir;
-	obex_object_addheader(self->obex_ctx, obj, OBEX_HDR_BODY, hv, dir_length, 0);
-	hv.bs = name;
-	obex_object_addheader(self->obex_ctx, obj, OBEX_HDR_BODY, hv, name_length, 0);
+	hv.bs = buffer;
+	obex_object_addheader(self->obex_ctx, obj, OBEX_HDR_BODY, hv, dir_length + name_length, 0);
 	rsp = obex_request(self->obex_ctx, obj);
 	obex_object_delete(self->obex_ctx, obj);
+	free(buffer);
 	return rsp;
 }
 
