@@ -540,7 +540,7 @@ int exword_list(exword_t *self, directory_entry_t **entries, uint16_t *count)
 	return rsp;
 }
 
-int exword_free_list(directory_entry_t *entries)
+void exword_free_list(directory_entry_t *entries)
 {
 	int i;
 	for (i = 0; entries[i].name != NULL; i++) {
@@ -590,6 +590,7 @@ int exword_cryptkey(exword_t *self, exword_cryptkey_t *key)
 		}
 	}
 	obex_object_delete(self->obex_ctx, obj);
+	return rsp;
 }
 
 int exword_cname(exword_t *self, char *name, char* dir)
@@ -612,6 +613,7 @@ int exword_cname(exword_t *self, char *name, char* dir)
 	obex_object_addheader(self->obex_ctx, obj, OBEX_HDR_BODY, hv, name_length, 0);
 	rsp = obex_request(self->obex_ctx, obj);
 	obex_object_delete(self->obex_ctx, obj);
+	return rsp;
 }
 
 int exword_unlock(exword_t *self)
@@ -691,6 +693,7 @@ int exword_authinfo(exword_t *self, exword_authinfo_t *info)
 		}
 	}
 	obex_object_delete(self->obex_ctx, obj);
+	return rsp;
 }
 
 int exword_disconnect(exword_t *self)
