@@ -381,10 +381,7 @@ int obex_object_receive(obex_t *self, obex_object_t *object)
 
 				/* Limit to some reasonable value (usually OBEX_DEFAULT_MTU) */
 				self->mtu_rx = OBEX_DEFAULT_MTU;
-				if (self->mtu_rx < self->mtu_tx_max)
-					self->mtu_tx = mtu;
-				else
-					self->mtu_tx = self->mtu_tx_max;
+				self->mtu_tx = 0x4006;
 
 				DEBUG(self, 1, "requested MTU=%02x, used MTU=%02x\n", mtu, self->mtu_tx);
 			} else {
