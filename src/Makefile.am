@@ -25,4 +25,4 @@ exword_CFLAGS = \
         $(AM_CFLAGS)
 
 exword_LDFLAGS = $(AM_LDFLAGS)
-exword_LDADD = $(READLINE_LIBS) $(POPT_LIBS) libexword.la
+exword_LDADD = $(READLINE_LIBS) libexword.la

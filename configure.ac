@@ -16,9 +16,6 @@ AM_PROG_CC_C_O
 # Checks for header files.
 AC_CHECK_HEADERS([stdlib.h string.h])
 
-AC_CHECK_HEADER(popt.h, [], [AC_MSG_ERROR([popt header not found])])
-AC_CHECK_LIB(popt, poptGetContext, AC_SUBST([POPT_LIBS], [-lpopt]), [AC_MSG_ERROR([popt support not available])])
-
 AC_CHECK_HEADER([readline/readline.h], [], [AC_MSG_ERROR([readline header not found])])
 AC_CHECK_LIB(readline, readline, AC_SUBST([READLINE_LIBS], [-lreadline]), [AC_MSG_ERROR([readline support not available])])
 

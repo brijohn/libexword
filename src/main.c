@@ -16,10 +16,8 @@
  * with this program; if not, write to the Free Software Foundation, Inc.,
  * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  *
- *
  */
 
-#include <popt.h>
 #include <stdlib.h>
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -30,76 +28,142 @@
 #include <readline/readline.h>
 #include <readline/history.h>
 #include "exword.h"
+#include "list.h"
 
-#define CMD_NONE	0x0
-#define CMD_LIST	0x1
-#define CMD_MODEL	0x2
-#define CMD_SEND	0x4
-#define CMD_DELETE	0x8
-#define CMD_CAPACITY	0x10
-#define CMD_DISCONNECT	0x20
-#define CMD_CONNECT	0x40
-#define CMD_GET		0x80
-#define CMD_FORMAT	0x100
-#define CMD_SETPATH	0x200
+struct state {
+	exword_t *device;
+	int mode;
+	int running;
+	int connected;
+	int debug;
+	int mkdir;
+	char *cwd;
+	struct list_head cmd_list;
+};
 
-#define CMD_MASK	0x3ff
-#define REQ_CON_MASK	(CMD_LIST      | \
-			CMD_MODEL      | \
-			CMD_SEND       | \
-			CMD_DELETE     | \
-			CMD_CAPACITY   | \
-			CMD_DISCONNECT | \
-			CMD_GET        | \
-			CMD_FORMAT     | \
-			CMD_SETPATH)
+typedef void (*cmd_func)(struct state *);
 
-#define CMD_INTERACTIVE 0x8000
+struct cmd_arg {
+	char *arg;
+	struct list_head queue;
+};
 
-uint8_t  debug_level;
-uint16_t command;
-uint16_t open_opts;
-char    *filename;
-char    *sd_path;
-char    *mem_path;
+struct command {
+	char *cmd_str;
+	cmd_func ptr;
+	char *help_short;
+	char *help_long;
+};
 
+void quit(struct state *s);
+void help(struct state *s);
+void connect(struct state *s);
+void disconnect(struct state *s);
+void set(struct state *s);
+void model(struct state *s);
+void capacity(struct state *s);
+void format(struct state *s);
+void list(struct state *s);
+void delete(struct state *s);
+void send(struct state *s);
+void get(struct state *s);
+void setpath(struct state *s);
 
+struct command commands[] = {
+{"connect", connect, "connect [mode] [region]\t- connect to attached dictionary\n",
+	"Connects to device.\n\n"
+	"Region specifies the region of the device (default:ja).\n"
+	"Mode can be one of the following values:\n"
+	"library - connect as CASIO Library (default)\n"
+	"text    - connect as Textloader\n"
+	"cd      - connect as CDLoader\n"},
+{"disconnect", disconnect, "disconnect\t\t- disconnect from dictionary\n",
+	"Disconnects from device.\n"},
+{"model", model, "model\t\t\t- display model information\n",
+	"Displays model information of device.\n"},
+{"capacity", capacity, "capacity\t\t- display medium capacity\n",
+	"Displays capacity of current storage medium.\n"},
+{"format", format, "format\t\t\t- format SD card\n",
+	"Formats currently inserted SD Card.\n"},
+{"list", list, "list\t\t\t- list files\n",
+	"Lists files and directories under current path.\n\n"
+	"Directories are enclosed in <>.\n"
+	"Files or directories beginning with * were returned as unicode.\n"},
+{"delete", delete, "delete <filename>\t- delete a file\n",
+	"Deletes a file from dicionary.\n"},
+{"send", send, "send <filename>\t\t- upload a file\n",
+	"Uploads a file to dicionary.\n"},
+{"get", get, "get <filename>\t\t- download a file\n",
+	"Downloads a file from dicionary.\n"},
+{"setpath", setpath, "setpath <path>\t\t- changes directory on dictionary\n",
+	"Changes to the the specified path.\n\n"
+	"<path> is in the form of <sd|mem://<path>\n"
+	"Example: mem:/// - sets path to root of internal memory\n"},
+{"set", set, "set <option> [value]\t- sets program options\n",
+	"Sets <option> to [value], if no value is specified will display current value.\n\n"
+	"Available options:\n"
+	"debug <level>  - sets debug level (0-5)\n"
+	"mkdir <on|off> - specifies whether setpath should create directories\n"},
+{"exit", quit, "exit\t\t\t- exits program\n",
+	"Exits program and disconnects from device.\n"},
+{"help", help, NULL, NULL},
+{NULL, NULL, NULL, NULL}
+};
 
-struct poptOption options[] = {
-        { "sd", 0, POPT_ARG_STRING, &sd_path, 0,
-        "access external sd card" },
-        { "internal", 0, POPT_ARG_STRING, &mem_path, 0,
-        "access internal memory (default)" },
-        { "list", 0, POPT_BIT_SET, &command, CMD_LIST,
-        "list files on device" },
-        { "send", 0, POPT_BIT_SET, &command, CMD_SEND,
-        "send file to device" },
-        { "get", 0, POPT_BIT_SET, &command, CMD_GET,
-        "get file from device" },
-        { "delete", 0, POPT_BIT_SET, &command, CMD_DELETE,
-        "delete file from device" },
-        { "model", 0, POPT_BIT_SET, &command, CMD_MODEL,
-        "get device model" },
-        { "capacity", 0, POPT_BIT_SET, &command, CMD_CAPACITY,
-        "get device capacity" },
-        { "format", 0, POPT_BIT_SET, &command, CMD_FORMAT,
-        "format SD Card" },
-        { "interactive", 0, POPT_BIT_SET, &command, CMD_INTERACTIVE,
-        "interactive mode" },
-        { "file", 0, POPT_ARG_STRING, &filename, 0,
-        "file name to transfer/delete" },
-        { "debug", 0, POPT_ARG_INT, &debug_level, 0,
-        "debug level (0..5)" },
-        POPT_AUTOHELP
-        { NULL, 0, 0, NULL, 0 }
-   };
+void * xmalloc (size_t n)
+{
+	void *p = malloc(n);
+	if (!p && n != 0) {
+		fprintf(stderr, "abort: Out of Memory\n");
+		abort();
+	}
+	return p;
+}
 
+void queue_arg(struct list_head *head, char * arg)
+{
+	struct cmd_arg * _arg = xmalloc(sizeof(struct cmd_arg));
+	_arg->arg = xmalloc(strlen(arg) + 1);
+	strcpy(_arg->arg, arg);
+	list_add_tail(&(_arg->queue), head);
+}
 
-void usage(poptContext optCon, int exitcode, char *error) {
-	poptPrintUsage(optCon, stderr, 0);
-	if (error) fprintf(stderr, "%s\n", error);
-	poptFreeContext(optCon);
-	exit(exitcode);
+char * peek_arg(struct list_head *head)
+{
+	char * arg = NULL;
+	struct cmd_arg *_arg;
+	if (!list_empty(head)) {
+		_arg = list_entry(head->next, struct cmd_arg, queue);
+		arg = _arg->arg;
+	}
+	return arg;
+}
+
+void dequeue_arg(struct list_head *head)
+{
+	struct cmd_arg * _arg;
+	if (!list_empty(head)) {
+		_arg = list_entry(head->next, struct cmd_arg, queue);
+		list_del(&(_arg->queue));
+		free(_arg->arg);
+		free(_arg);
+	}
+}
+
+void clear_arg_list(struct list_head *head)
+{
+	while (!list_empty(head)) {
+		dequeue_arg(head);
+	}
+}
+
+void fill_arg_list(struct list_head *head, char * str)
+{
+	char * token = strtok(str, " \t");
+	queue_arg(head, token);
+	while ((token = strtok(NULL, " \t")) != NULL) {
+		queue_arg(head, token);
+	}
 }
 
 int read_file(char* filename, char **buffer, int *len)
@@ -107,23 +171,14 @@ int read_file(char* filename, char **buffer, int *len)
 	int fd;
 	struct stat buf;
 	*buffer = NULL;
-	if (filename == NULL)
-		return 0x44;
 	fd = open(filename, O_RDONLY);
 	if (fd < 0)
 		return 0x44;
-	if (fstat(fd, &buf) < 0) {
-		close(fd);
-		return 0x44;
-	}
-	*buffer = malloc(buf.st_size);
-	if (*buffer == NULL) {
-		close(fd);
-		return 0x50;
-	}
+	fstat(fd, &buf);
+	*buffer = xmalloc(buf.st_size);
 	*len = read(fd, *buffer, buf.st_size);
 	if (*len < 0) {
-		free(buffer);
+		free(*buffer);
 		*buffer = NULL;
 		close(fd);
 		return 0x50;
@@ -148,84 +203,11 @@ int write_file(char* filename, char *buffer, int len)
 	return 0x20;
 }
 
-void print_entry(directory_entry_t *entry)
-{
-	int len;
-	char * name;
-	if (entry->flags & LIST_F_UNICODE) {
-		name = utf16_to_locale(&name, &len, entry->name, entry->size - 3);
-	} else {
-		name = entry->name;
-	}
-	if (entry->flags & LIST_F_DIR)
-		printf("<%s>\n", name);
-	else
-		printf("%s\n", name);
-}
-
-int list_files(exword_t *d)
-{
-	int rsp, i;
-	directory_entry_t *entries;
-	uint16_t len;
-	rsp = exword_list(d, &entries, &len);
-	if (rsp != 0x20)
-		goto fail;
-	for (i = 0; i < len; i++) {
-		print_entry(entries + i);
-	}
-	exword_free_list(entries);
-fail:
-	return rsp;
-}
-
-int display_capacity(exword_t *d)
-{
-	int rsp;
-	exword_capacity_t cap;
-	rsp = exword_get_capacity(d, &cap);
-	if (rsp != 0x20)
-		goto fail;
-	printf("Capacity: %d / %d\n", cap.total, cap.used);
-fail:
-	return rsp;
-}
-
-int send_file(exword_t *d, char *filename)
-{
-	int rsp, len;
-	char *buffer;
-	rsp = read_file(filename, &buffer, &len);
-	if (rsp != 0x20)
-		goto fail;
-	rsp = exword_send_file(d, basename(filename), buffer, len);
-fail:
-	free(buffer);
-	return rsp;
-}
-
-int get_file(exword_t *d, char *filename)
-{
-	int rsp, len;
-	char *buffer = NULL, *fname_copy = NULL;
-	fname_copy = strdup(filename);
-	rsp = exword_get_file(d, basename(fname_copy), &buffer, &len);
-	if (rsp != 0x20)
-		goto fail;
-	rsp = write_file(filename, buffer, len);
-fail:
-	free(fname_copy);
-	free(buffer);
-	return rsp;
-}
-
-int set_path(exword_t *d, char* device, char *pathname)
+int _setpath(struct state *s, char* device, char *pathname, int mkdir)
 {
 	char *path, *p;
 	int rsp, i = 0, j;
-	path = malloc(strlen(device) + strlen(pathname) + 2);
-	if (!path)
-		return 0x50;
+	path = xmalloc(strlen(device) + strlen(pathname) + 2);
 	strcpy(path, device);
 	strcat(path, "\\");
 	strcat(path, pathname);
@@ -243,346 +225,392 @@ int set_path(exword_t *d, char* device, char *pathname)
 			p[0] = '\\';
 		p++;
 	}
-	rsp = exword_setpath(d, path, SETPATH_NOCREATE);
-fail:
+	rsp = exword_setpath(s->device, path, (mkdir ? 0 : 2));
+	if (rsp == 0x20) {
+		free(s->cwd);
+		s->cwd = xmalloc(strlen(path) + 1);
+		strcpy(s->cwd, path);
+	}
 	free(path);
 	return rsp;
 }
 
-int delete_file(exword_t *d, char *filename)
+void quit(struct state *s)
 {
-	int rsp;
-	if (filename == NULL)
-		return 0x40;
-	rsp = exword_remove_file(d, basename(filename));
-fail:
-	return rsp;
+	s->running = 0;
+	disconnect(s);
 }
 
-int display_model(exword_t *d)
+void help(struct state *s)
+{
+	int i;
+	char *cmd = peek_arg(&(s->cmd_list));
+	if (cmd == NULL) {
+		for (i = 0; commands[i].cmd_str != NULL; i++) {
+			if (commands[i].help_short != NULL)
+				printf("%s", commands[i].help_short);
+		}
+	} else {
+		for (i = 0; commands[i].cmd_str != NULL; i++) {
+			if (strcmp(cmd, commands[i].cmd_str) == 0) {
+				if (commands[i].help_long != NULL)
+					printf("%s", commands[i].help_long);
+				else
+					printf("No help available for %s\n", cmd);
+				break;
+			}
+		}
+		if (commands[i].cmd_str == NULL)
+			printf("%s is not a command\n", cmd);
+	}
+}
+
+void connect(struct state *s)
+{
+	int  options = OPEN_LIBRARY | LOCALE_JA;
+	char *mode;
+	char *locale;
+	int error = 0;
+	if (s->connected)
+		return;
+
+	mode = peek_arg(&(s->cmd_list));
+	if (mode != NULL) {
+		if (strcmp(mode, "library") == 0) {
+			options = OPEN_LIBRARY;
+		} else if (strcmp(mode, "text") == 0) {
+			options = OPEN_TEXT;
+		} else if (strcmp(mode, "cd") == 0) {
+			options = OPEN_CD;
+		} else {
+			printf("Unknown 'type': %s\n", mode);
+			error = 1;
+		}
+		dequeue_arg(&(s->cmd_list));
+		locale = peek_arg(&(s->cmd_list));
+		if (!error && locale != NULL) {
+			if (strcmp(locale, "ja") == 0) {
+				options |= LOCALE_JA;
+			} else if (strcmp(locale, "kr") == 0) {
+				options |= LOCALE_KR;
+			} else if (strcmp(locale, "cn") == 0) {
+				options |= LOCALE_CN;
+			} else if (strcmp(locale, "de") == 0) {
+				options |= LOCALE_DE;
+			} else if (strcmp(locale, "es") == 0) {
+				options |= LOCALE_ES;
+			} else if (strcmp(locale, "fr") == 0) {
+				options |= LOCALE_FR;
+			} else if (strcmp(locale, "ru") == 0) {
+				options |= LOCALE_RU;
+			} else {
+				printf("Unknown 'locale': %s\n", locale);
+				error = 1;
+			}
+		} else if (!error) {
+			options |= LOCALE_JA;
+		}
+	}
+	if (!error) {
+		printf("connecting to device...");
+		s->device = exword_open2(options);
+		if (s->device == NULL) {
+			printf("device not found\n");
+		} else {
+			exword_set_debug(s->debug);
+			if (exword_connect(s->device) != 0x20) {
+				printf("connect failed\n");
+				exword_close(s->device);
+				s->device = NULL;
+			} else {
+				_setpath(s, INTERNAL_MEM, "/", 2);
+				s->connected = 1;
+				s->mode = (options & 0xff00);
+				printf("done\n");
+			}
+		}
+	}
+}
+
+void disconnect(struct state *s)
+{
+	if (!s->connected)
+		return;
+	printf("disconnecting...");
+	exword_disconnect(s->device);
+	exword_close(s->device);
+	s->device = NULL;
+	s->connected = 0;
+	printf("done\n");
+}
+
+void model(struct state *s)
 {
 	int rsp;
 	exword_model_t model;
-	rsp = exword_get_model(d, &model);
-	if (rsp != 0x20)
-		goto fail;
-	printf("Model: %s\nSub: %s\n", model.model, model.sub_model);
-fail:
-	return rsp;
+	if (!s->connected)
+		return;
+	rsp = exword_get_model(s->device, &model);
+	if (rsp == 0x20)
+		printf("Model: %s\nSub: %s\n", model.model, model.sub_model);
+	else
+		printf("%s\n", exword_response_to_string(rsp));
 }
 
-int sd_format(exword_t *d)
+void capacity(struct state *s)
 {
 	int rsp;
-	rsp = exword_sd_format(d);
-	return rsp;
+	exword_capacity_t cap;
+	if (!s->connected)
+		return;
+	rsp = exword_get_capacity(s->device, &cap);
+	if (rsp == 0x20)
+		printf("Capacity: %d / %d\n", cap.total, cap.used);
+	else
+		printf("%s\n", exword_response_to_string(rsp));
 }
 
-int connect(exword_t *d)
+void format(struct state *s)
 {
 	int rsp;
-	rsp = exword_connect(d);
-	return rsp;
+	if (!s->connected)
+		return;
+	printf("Formatting SD Card...");
+	rsp = exword_sd_format(s->device);
+	printf("%s\n", exword_response_to_string(rsp));
 }
 
-int disconnect(exword_t *d)
+void send(struct state *s)
+{
+	int rsp, len;
+	char *buffer;
+	char *filename;
+	char *name = NULL;
+	if (!s->connected)
+		return;
+	filename = peek_arg(&(s->cmd_list));
+	if (filename == NULL) {
+		printf("No file specified\n");
+	} else {
+		name = xmalloc(strlen(filename) + 1);
+		strcpy(name, filename);
+		printf("uploading...");
+		rsp = read_file(name, &buffer, &len);
+		if (rsp == 0x20)
+			rsp = exword_send_file(s->device, basename(name), buffer, len);
+		free(name);
+		free(buffer);
+		printf("%s\n", exword_response_to_string(rsp));
+	}
+}
+
+void get(struct state *s)
+{
+	int rsp, len;
+	char *buffer = NULL, *name = NULL;
+	char *filename;
+	if (!s->connected)
+		return;
+	filename = peek_arg(&(s->cmd_list));
+	if (filename == NULL) {
+		printf("No file specified\n");
+	} else {
+		name = xmalloc(strlen(filename) + 1);
+		strcpy(name, filename);
+		printf("downloading...");
+		rsp = exword_get_file(s->device, basename(name), &buffer, &len);
+		if (rsp == 0x20)
+			rsp = write_file(filename, buffer, len);
+		free(name);
+		free(buffer);
+		printf("%s\n", exword_response_to_string(rsp));
+	}
+}
+
+void delete(struct state *s)
 {
 	int rsp;
-	rsp = exword_disconnect(d);
-	return rsp;
+	char * filename;
+	if (!s->connected)
+		return;
+	filename = peek_arg(&(s->cmd_list));
+	if (filename == NULL) {
+		printf("No file specified\n");
+	} else {
+		printf("deleting file...");
+		rsp = exword_remove_file(s->device, filename);
+		printf("%s\n", exword_response_to_string(rsp));
+	}
 }
 
-int parse_commandline(char *cmdl)
+void list(struct state *s)
 {
-	int ret = 0, r1;
-	char *cmd = NULL;
-	command &= ~CMD_MASK;
-	sscanf(cmdl, "%ms", &cmd);
-
-	if (strcmp(cmd, "help") == 0) {
-		printf("Commands:\n");
-		printf("connect [type] [locale]   - connect to attached dictionary\n");
-		printf("disconnect                - disconnect to dictionary\n");
-		printf("model                     - print model\n");
-		printf("setpath <sd|mem>://<path> - switch storage medium\n");
-		printf("list                      - list files\n");
-		printf("capacity                  - display medium capacity\n");
-		printf("format                    - format SD card\n");
-		printf("delete  <filename>        - delete filename\n");
-		printf("send    <filename>        - upload filename\n");
-		printf("debug   <number>          - set debug level (0-5)\n");
-	} else if (strcmp(cmd, "connect") == 0) {
-		char type[10];
-		char locale[3];
-		int error = 0;
-		open_opts = 0;
-		r1 = sscanf(cmdl, "%*s %10s %2s", type, locale);
-		if (r1 <= 0) {
-			open_opts = OPEN_LIBRARY|LOCALE_JA;
-		} else {
-			if (strcmp(type, "library") == 0) {
-				open_opts |= OPEN_LIBRARY;
-			} else if (strcmp(type, "text") == 0) {
-				open_opts |= OPEN_TEXT;
-			} else if (strcmp(type, "cd") == 0) {
-				open_opts |= OPEN_CD;
+	int rsp, i;
+	char * name;
+	int len;
+	directory_entry_t *entries;
+	uint16_t count;
+	if (!s->connected)
+		return;
+	rsp = exword_list(s->device, &entries, &count);
+	if (rsp == 0x20) {
+		for (i = 0; i < count; i++) {
+			if (entries[i].flags & LIST_F_UNICODE) {
+				utf16_to_locale(&name, &len,
+						entries[i].name,
+						entries[i].size - 3);
+				if (entries[i].flags & LIST_F_DIR)
+					printf("<*%s>\n", name);
+				else
+					printf("*%s\n", name);
 			} else {
-				printf("Unknown 'type': %s\n", type);
-				error = 1;
+				if (entries[i].flags & LIST_F_DIR)
+					printf("<%s>\n", entries[i].name);
+				else
+					printf("%s\n", entries[i].name);
 			}
-			if (!error && r1 > 1) {
-				if (strcmp(locale, "ja") == 0) {
-					open_opts |= LOCALE_JA;
-				} else if (strcmp(locale, "kr") == 0) {
-					open_opts |= LOCALE_KR;
-				} else if (strcmp(locale, "cn") == 0) {
-					open_opts |= LOCALE_CN;
-				} else if (strcmp(locale, "de") == 0) {
-					open_opts |= LOCALE_DE;
-				} else if (strcmp(locale, "es") == 0) {
-					open_opts |= LOCALE_ES;
-				} else if (strcmp(locale, "fr") == 0) {
-					open_opts |= LOCALE_FR;
-				} else if (strcmp(locale, "ru") == 0) {
-					open_opts |= LOCALE_RU;
-				} else {
-					printf("Unknown 'locale': %s\n", locale);
-					error = 1;
+		}
+		exword_free_list(entries);
+	}
+	printf("%s\n", exword_response_to_string(rsp));
+}
+
+void setpath(struct state *s)
+{
+	int rsp;
+	char *path;
+	char *path2 = NULL;
+	if (!s->connected)
+		return;
+	path = peek_arg(&(s->cmd_list));
+	if (path == NULL) {
+		printf("No path specified\n");
+	} else {
+		rsp = sscanf(path, "sd://%ms", &path2);
+		if (rsp > 0) {
+			rsp = _setpath(s, SD_CARD, path2, s->mkdir);
+			if (rsp != 0x20) {
+				printf("%s\n", exword_response_to_string(rsp));
+				exword_setpath(s->device, s->cwd, 2);
+			}
+		} else {
+			rsp = sscanf(path, "mem://%ms", &path2);
+			if (rsp > 0) {
+				rsp = _setpath(s, INTERNAL_MEM, path2, s->mkdir);
+				if (rsp != 0x20) {
+					printf("%s\n", exword_response_to_string(rsp));
+					exword_setpath(s->device, s->cwd, 2);
 				}
 			} else {
-				open_opts |= LOCALE_JA;
+				printf("Invalid argument. Format (sd|mem)://<path>\n");
 			}
-				
 		}
-		if (!error)
-			command |= CMD_CONNECT;
-	} else if (strcmp(cmd, "setpath") == 0) {
-		free(sd_path);
-		sd_path = NULL;
-		free(mem_path);
-		mem_path = NULL;
-		if (sscanf(cmdl, "%*s sd://%ms", &sd_path) > 0 || 
-		    sscanf(cmdl, "%*s mem://%ms", &mem_path) > 0) {
-			command |= CMD_SETPATH;
-		} else {
-			printf("Invalid argument. Format (sd|mem)://<path>\n");
-		}
-	} else if(strcmp(cmd, "delete") == 0 ||
-		  strcmp(cmd, "send") == 0   ||
-		  strcmp(cmd, "get") == 0) {
-		free(filename);
-		filename = NULL;
-		sscanf(cmdl, "%*s %ms", &filename);
-		if (filename == NULL) {
-			printf("Requires filename\n");
-		} else {
-			if (strcmp(cmd, "delete") == 0)
-				command |= CMD_DELETE;
-			else if (strcmp(cmd, "send") == 0)
-				command |= CMD_SEND;
-			else
-				command |= CMD_GET;
-		}
-	} else if(strcmp(cmd, "debug") == 0) {
-		if (sscanf(cmdl, "debug %hhu", &debug_level) < 1)
-			printf("Requires debug level\n");
-		else if (debug_level > 5)
-			printf("Value should be between 0 and 5\n");
-		else
-			exword_set_debug(debug_level);
-	} else if(strcmp(cmd, "exit") == 0) {
-		ret = 1;
-	} else if (strcmp(cmd, "disconnect") == 0) {
-		command |= CMD_DISCONNECT;
-	} else if (strcmp(cmd, "model") == 0) {
-		command |= CMD_MODEL;
-	} else if (strcmp(cmd, "capacity") == 0) {
-		command |= CMD_CAPACITY;
-	} else if (strcmp(cmd, "list") == 0) {
-		command |= CMD_LIST;
-	} else if (strcmp(cmd, "format") == 0) {
-		command |= CMD_FORMAT;
-	} else {
-		ret = -1;
+		free(path2);
 	}
-	free(cmd);
-	return ret;
 }
 
-void interactive() {
-	char * line = NULL;
-	int rsp, ret = 0;
-	exword_t *handle = NULL;
+void set(struct state *s)
+{
+	char * opt;
+	char * arg;
+	opt = peek_arg(&(s->cmd_list));
+	if (opt == NULL) {
+		printf("No option specified\n");
+	} else if (strcmp(opt, "debug") == 0) {
+		uint8_t debug;
+		dequeue_arg(&(s->cmd_list));
+		arg = peek_arg(&(s->cmd_list));
+		if (arg == NULL) {
+			printf("Debug Level: %u\n", s->debug);
+		} else {
+			if (sscanf(arg, "%hhu", &debug) < 1) {
+				printf("Invalid value\n");
+			} else if (debug > 5) {
+				printf("Value should be between 0 and 5\n");
+			} else {
+				s->debug = debug;
+				exword_set_debug(s->debug);
+			}
+		}
+	} else if (strcmp(opt, "mkdir") == 0) {
+		dequeue_arg(&(s->cmd_list));
+		arg = peek_arg(&(s->cmd_list));
+		if (arg == NULL) {
+			printf("Mkdir: %u\n", s->mkdir);
+		} else {
+			if (strcmp(arg, "on") == 0 ||
+			    strcmp(arg, "yes") == 0 ||
+			    strcmp(arg, "true") == 0) {
+				s->mkdir = 1;
+			} else if (strcmp(arg, "off") == 0 ||
+			    strcmp(arg, "no") == 0 ||
+			    strcmp(arg, "false") == 0) {
+				s->mkdir = 0;
+			} else {
+				printf("Invalid value\n");
+			}
+		}
+	} else {
+		printf("Unknown option %s\n", opt);
+	}
+}
 
-	printf("exword interactive mode\n");
-	while (ret != 1) {
+void process_command(struct state *s)
+{
+	int i;
+	char * cmd = peek_arg(&(s->cmd_list));
+	for (i = 0; commands[i].cmd_str != NULL; i++) {
+		if (strcmp(cmd, commands[i].cmd_str) == 0) {
+			dequeue_arg(&(s->cmd_list));
+			commands[i].ptr(s);
+			break;
+		}
+	}
+	if (commands[i].cmd_str == NULL)
+		printf("Unknown command\n");
+}
+
+char * create_prompt(char *cwd) {
+	char *p;
+	if (cwd == NULL) {
+		p = xmalloc(4);
+		strcpy(p, ">> ");
+	} else {
+		p = xmalloc(strlen(cwd) + 5);
+		strcpy(p, cwd);
+		strcat(p, " >> ");
+	}
+	return p;
+}
+
+void interactive(struct state *s) {
+	char * line = NULL;
+	char * prompt = NULL;
+	printf("Exword dictionary tool.\n"
+	       "Type 'help' for a list of commands.\n");
+	s->running = 1;
+	INIT_LIST_HEAD(&(s->cmd_list));
+	while (s->running) {
 		free(line);
-		line = readline(">> ");
+		free(prompt);
+		prompt = create_prompt(s->cwd);
+		line = readline(prompt);
 		if (line == NULL || *line == '\0')
 			continue;
-
 		add_history(line);
-		ret = parse_commandline(line);
-
-		if (ret < 0) {
-			printf("Invalid command\n");
-			continue;
-		}
-
-		if (handle == NULL &&
-		    command & REQ_CON_MASK) {
-			printf("Not connected\n");
-			continue;
-		}
-
-		switch(command & CMD_MASK) {
-		case CMD_CONNECT:
-			printf("connecting to device...");
-			handle = exword_open2(open_opts);
-			if (handle == NULL) {
-				printf("device not found\n");
-			} else {
-				exword_set_debug(debug_level);
-				if(connect(handle) != 0x20) {
-					printf("connect failed\n");
-					exword_close(handle);
-					handle = NULL;
-				} else {
-					rsp = set_path(handle, INTERNAL_MEM, "/");
-					printf("done\n");
-				}
-			}
-			break;
-		case CMD_DISCONNECT:
-			printf("disconnecting...");
-			disconnect(handle);
-			exword_close(handle);
-			handle = NULL;
-			printf("done\n");
-			break;
-		case CMD_SETPATH:
-			if (sd_path)
-				rsp = set_path(handle, SD_CARD, sd_path);
-			else 
-				rsp = set_path(handle, INTERNAL_MEM, mem_path);
-			if (rsp != 0x20)
-				printf("%s\n", exword_response_to_string(rsp));
-			break;
-		case CMD_MODEL:
-			rsp = display_model(handle);
-			if (rsp != 0x20)
-				printf("%s\n", exword_response_to_string(rsp));
-			break;
-		case CMD_LIST:
-			rsp = list_files(handle);
-			if (rsp != 0x20)
-				printf("%s\n", exword_response_to_string(rsp));
-			break;
-		case CMD_CAPACITY:
-			rsp = display_capacity(handle);
-			if (rsp != 0x20)
-				printf("%s\n", exword_response_to_string(rsp));
-			break;
-		case CMD_DELETE:
-			printf("deleting...");
-			rsp = delete_file(handle, filename);
-			printf("%s\n", exword_response_to_string(rsp));
-			break;
-		case CMD_SEND:
-			printf("uploading...");
-			rsp = send_file(handle, filename);
-			printf("%s\n", exword_response_to_string(rsp));
-			break;
-		case CMD_GET:
-			printf("downloading...");
-			rsp = get_file(handle, filename);
-			printf("%s\n", exword_response_to_string(rsp));
-			break;
-		case CMD_FORMAT:
-			printf("formatting...");
-			rsp = sd_format(handle);
-			printf("%s\n", exword_response_to_string(rsp));
-			break;
-		}
-	}
-	if (handle != NULL) {
-		disconnect(handle);
-		exword_close(handle);
+		fill_arg_list(&(s->cmd_list), line);
+		process_command(s);
+		clear_arg_list(&(s->cmd_list));
 	}
 	free(line);
-	free(filename);
-	free(sd_path);
-	free(mem_path);
+	free(prompt);
 }
 
 int main(int argc, const char** argv)
 {
-	poptContext optCon;
-	exword_t *device;
-	int rsp;
-	optCon = poptGetContext(NULL, argc, argv, options, 0);
-
+	struct state s;
 	setlocale(LC_ALL, "");
-
-	if (poptGetNextOpt(optCon) < -1)
-		usage(optCon, 1, NULL);
-
-	if (command & CMD_INTERACTIVE) {
-		interactive();
-		exit(0);
-	}
-
-	if ((command & CMD_MASK) == 0)
-		usage(optCon, 1, NULL);
-
-	if (sd_path && mem_path)
-		usage(optCon, 1, "--sd and --internal options mutually exclusive");
-
-	device = exword_open();
-	if (device == NULL) {
-		fprintf(stderr, "Failed to open device or no device found\n");
-	} else {
-		exword_set_debug(debug_level);
-		rsp = connect(device);
-		if (rsp == 0x20) {
-			if (sd_path)
-				rsp = set_path(device, SD_CARD, sd_path);
-			else if (mem_path)
-				rsp = set_path(device, INTERNAL_MEM, mem_path);
-			else
-				rsp = set_path(device, INTERNAL_MEM, "\\");
-		}
-		if (rsp == 0x20) {
-			switch(command & CMD_MASK) {
-			case CMD_LIST:
-				rsp = list_files(device);
-				break;
-			case CMD_MODEL:
-				rsp = display_model(device);
-				break;
-			case CMD_CAPACITY:
-				rsp = display_capacity(device);
-				break;
-			case CMD_SEND:
-				rsp = send_file(device, filename);
-				break;
-			case CMD_GET:
-				rsp = get_file(device, filename);
-				break;
-			case CMD_DELETE:
-				rsp = delete_file(device, filename);
-				break;
-			case CMD_FORMAT:
-				rsp = sd_format(device);
-				break;
-			default:
-				usage(optCon, 1, "No such command");
-			}
-		}
-		disconnect(device);
-		printf("%s\n", exword_response_to_string(rsp));
-		exword_close(device);
-	}
-	poptFreeContext(optCon);
+	memset(&s, 0, sizeof(struct state));
+	interactive(&s);
 	return 0;
 }
