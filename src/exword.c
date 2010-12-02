@@ -684,7 +684,7 @@ int exword_authinfo(exword_t *self, exword_authinfo_t *info)
 	obex_object_t *obj = obex_object_new(self->obex_ctx, OBEX_CMD_GET);
 	if (obj == NULL)
 		return -1;
-	hv.bs = CryptKey;
+	hv.bs = AuthInfo;
 	obex_object_addheader(self->obex_ctx, obj, OBEX_HDR_NAME, hv, 20, 0);
 	hv.bs = info->cdkey;
 	obex_object_addheader(self->obex_ctx, obj, OBEX_HDR_AUTHINFO, hv, 40, 0);
