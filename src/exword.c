@@ -511,6 +511,8 @@ int exword_list(exword_t *self, directory_entry_t **entries, uint16_t *count)
 	obex_headerdata_t hv;
 	uint8_t hi;
 	uint32_t hv_size;
+	*count = 0;
+	*entries = NULL;
 	obex_object_t *obj = obex_object_new(self->obex_ctx, OBEX_CMD_GET);
 	if (obj == NULL)
 		return -1;
