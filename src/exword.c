@@ -104,6 +104,32 @@ static char * convert (iconv_t cd,
 	return output;
 }
 
+char * locale_to_sjis(char **dst, int *dstsz, const char *src, int srcsz)
+{
+	iconv_t cd;
+	*dst = NULL;
+	*dstsz = 0;
+	cd = iconv_open("SHIFT_JIS", "");
+	if (cd == (iconv_t) -1)
+		return NULL;
+	*dst = convert(cd, dst, dstsz, src, srcsz);
+	iconv_close(cd);
+	return *dst;
+}
+
+char * sjis_to_locale(char **dst, int *dstsz, const char *src, int srcsz)
+{
+	iconv_t cd;
+	*dst = NULL;
+	*dstsz = 0;
+	cd = iconv_open("", "SHIFT_JIS");
+	if (cd == (iconv_t) -1)
+		return NULL;
+	*dst = convert(cd, dst, dstsz, src, srcsz);
+	iconv_close(cd);
+	return *dst;
+}
+
 char * locale_to_utf16(char **dst, int *dstsz, const char *src, int srcsz)
 {
 	iconv_t cd;

@@ -37,6 +37,7 @@ struct state {
 	int connected;
 	int debug;
 	int mkdir;
+	int authenticated;
 	char *cwd;
 	struct list_head cmd_list;
 };
@@ -68,6 +69,7 @@ void delete(struct state *s);
 void send(struct state *s);
 void get(struct state *s);
 void setpath(struct state *s);
+void dict(struct state *s);
 
 struct command commands[] = {
 {"connect", connect, "connect [mode] [region]\t- connect to attached dictionary\n",
@@ -99,6 +101,17 @@ struct command commands[] = {
 	"Changes to the the specified path.\n\n"
 	"<path> is in the form of <sd|mem://<path>\n"
 	"Example: mem:/// - sets path to root of internal memory\n"},
+{"dict", dict, "dict <sub-function>\t- add-on dictionary commands\n",
+	"This command allows manipulation of add-on dictionaries. It uses\n"
+	"the storage medium of your current path as the storage device to\n"
+	"operate on. With the exception of the list sub-function you must\n"
+	"first authenticate to the dictionary.\n\n"
+	"Sub functions:\n"
+	"auth <user> <key> - authenticate to dictionary\n"
+	"list\t\t  - list installed add-on dictionaries\n"
+	"decrypt <id>\t  - decrypts specified add-on dictionary\n"
+	"remove  <id>\t  - removes specified add-on dictionary\n"
+	"install <id>\t  - installs specified add-on dictionary\n"},
 {"set", set, "set <option> [value]\t- sets program options\n",
 	"Sets <option> to [value], if no value is specified will display current value.\n\n"
 	"Available options:\n"
@@ -343,6 +356,7 @@ void disconnect(struct state *s)
 	s->cwd = NULL;
 	s->device = NULL;
 	s->connected = 0;
+	s->authenticated = 0;
 	printf("done\n");
 }
 
@@ -475,6 +489,105 @@ void list(struct state *s)
 		exword_free_list(entries);
 	}
 	printf("%s\n", exword_response_to_string(rsp));
+}
+
+int dict_list(exword_t *device, char *root);
+int dict_remove(exword_t *device, char *root, char *id);
+int dict_decrypt(exword_t *device, char *root, char *id);
+int dict_install(exword_t *device, char *root, char *id);
+int dict_auth(exword_t *device, char *user, char *auth);
+
+void dict(struct state *s)
+{
+	int i;
+	char val;
+	char root[15];
+	char *subfunc, *id, *user, *authkey;
+	if (!s->connected)
+		return;
+	if (s->mode != OPEN_LIBRARY) {
+		printf("Only available in library mode.\n");
+		return;
+	}
+	if (!memcmp(s->cwd, "\\_SD_00", 7))
+		strcpy(root, "\\_SD_00\\");
+	else
+		strcpy(root, "\\_INTERNAL_00\\");
+	if (peek_arg(&(s->cmd_list)) == NULL) {
+		printf("No sub-function specified.\n");
+	} else {
+		subfunc = xmalloc(strlen(peek_arg(&(s->cmd_list)) + 1));
+		strcpy(subfunc, peek_arg(&(s->cmd_list)));
+		dequeue_arg(&(s->cmd_list));
+		if (strcmp(subfunc, "list") == 0) {
+			dict_list(s->device, root);
+		} else if (strcmp(subfunc, "auth") == 0) {
+			if (peek_arg(&(s->cmd_list)) == NULL) {
+				printf("No username specified.\n");
+			} else {
+				user = xmalloc(strlen(peek_arg(&(s->cmd_list)) + 1));
+				strcpy(user, peek_arg(&(s->cmd_list)));
+				dequeue_arg(&(s->cmd_list));
+				if (peek_arg(&(s->cmd_list)) == NULL) {
+					printf("No authkey specified.\n");
+				} else {
+					if (sscanf(peek_arg(&(s->cmd_list)), "0x%m[a-fA-F0-9]", &authkey) < 1) {
+						printf("Invalid character in authkey.\n");
+					} else if (strlen(authkey) != 40) {
+						printf("Authkey wrong length. Must be 20 bytes.\n");
+					} else {
+						for (i = 0; i < 40; i += 2) {
+							if (authkey[i] >= 97)
+								val = (authkey[i] - 87) << 4;
+							else if (authkey[i] >= 65)
+								val = (authkey[i] - 55) << 4;
+							else if (authkey[i] >= 48)
+								val = (authkey[i] - 48) << 4;
+							if (authkey[i + 1] >= 97)
+								val |= (authkey[i + 1] - 87);
+							else if (authkey[i + 1] >= 65)
+								val |= (authkey[i + 1] - 55);
+							else if (authkey[i + 1] >= 48)
+								val |= (authkey[i + 1] - 48);
+							authkey[i / 2] = val;
+						}
+						if (dict_auth(s->device, user, authkey)) {
+							s->authenticated = 1;
+							printf("Authentication sucessful.\n");
+						} else {
+							printf("Authentication failed.\n");
+						}
+					}
+				}
+			}
+		} else if (strcmp(subfunc, "decrypt") == 0 ||
+			   strcmp(subfunc, "remove")  == 0 ||
+			   strcmp(subfunc, "install") == 0) {
+			id = peek_arg(&(s->cmd_list));
+			if (id == NULL) {
+				printf("No id specified.\n");
+			} else if (strlen(id) != 5) {
+				printf("Id must be 5 characters long.\n");
+			} else {
+				if (!s->authenticated) {
+					printf("Not authenticated.\n");
+					return;
+				}
+				if (strcmp(subfunc, "decrypt") == 0)
+					dict_decrypt(s->device, root, id);
+				else if (strcmp(subfunc, "install") == 0)
+					dict_install(s->device, root, id);
+				else if (strcmp(subfunc, "remove") == 0)
+					dict_remove(s->device, root, id);
+			}
+		} else {
+			printf("Unknown subfunction\n");
+		}
+		if (exword_setpath(s->device, s->cwd, 2) != 0x20) {
+			_setpath(s, root, "/", 0);
+		}
+		free(subfunc);
+	}
 }
 
 void setpath(struct state *s)

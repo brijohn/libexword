@@ -100,6 +100,8 @@ typedef struct {
 
 typedef void (*file_cb)(char *, uint32_t, uint32_t, void *);
 
+char * locale_to_sjis(char **dst, int *dstsz, const char *src, int srcsz);
+char * sjis_to_locale(char **dst, int *dstsz, const char *src, int srcsz);
 char * utf16_to_locale(char **dst, int *dstsz, const char *src, int srcsz);
 char * locale_to_utf16(char **dst, int *dstsz, const char *src, int srcsz);
 char *exword_response_to_string(int rsp);
