@@ -339,6 +339,8 @@ void disconnect(struct state *s)
 	printf("disconnecting...");
 	exword_disconnect(s->device);
 	exword_close(s->device);
+	free(s->cwd);
+	s->cwd = NULL;
 	s->device = NULL;
 	s->connected = 0;
 	printf("done\n");
