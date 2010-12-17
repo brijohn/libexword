@@ -179,6 +179,7 @@ typedef struct _obex {
 	buf_t *rx_msg;
 	int debug;
 	uint8_t seq_num;
+	int16_t seq_check;
 	obex_callback callback;
 	void * cb_userdata;
 } obex_t;
