@@ -35,8 +35,12 @@ static int obex_bulk_read(obex_t *self, buf_t *msg)
 		buffer = buf_reserve_end(msg, self->mtu_rx);
 		retval = libusb_bulk_transfer(self->usb_dev, self->read_endpoint_address, buffer, self->mtu_rx, &actual_length, 1245);
 		buf_remove_end(msg, self->mtu_rx - actual_length);
-		expected_length = ntohs(*((uint16_t*)(msg->data + 1)));
-	} while (expected_length != msg->data_size && actual_length > 0);
+		if (self->seq_check == -1)
+			expected_length = ntohs(*((uint16_t*)(msg->data + 1)));
+		else
+			expected_length = ntohs(*((uint16_t*)(msg->data + 2))) + 1;
+	} while ((expected_length != msg->data_size && retval == 0) ||
+		 (actual_length == 0 && retval == 0));
 	if (retval == 0)
 		retval = msg->data_size;
 	return retval;
