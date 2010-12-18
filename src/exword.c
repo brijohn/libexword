@@ -451,10 +451,10 @@ int exword_sd_format(exword_t *self)
 	return rsp;
 }
 
-int exword_setpath(exword_t *self, uint8_t *path, uint8_t flags)
+int exword_setpath(exword_t *self, uint8_t *path, uint8_t mkdir)
 {
 	int len, rsp;
-	uint8_t non_hdr[2] = {flags, 0x00};
+	uint8_t non_hdr[2] = {(mkdir ? 0 : 2), 0x00};
 	obex_headerdata_t hv;
 	char *unicode;
 	unicode = locale_to_utf16(&unicode, &len, path, strlen(path) + 1);
@@ -521,7 +521,7 @@ int exword_get_capacity(exword_t *self, exword_capacity_t *cap)
 			if (hi == OBEX_HDR_BODY) {
 				memcpy(cap, hv.bs, sizeof(exword_capacity_t));
 				cap->total = ntohl(cap->total);
-				cap->used = ntohl(cap->used);
+				cap->free = ntohl(cap->free);
 				break;
 			}
 		}
@@ -530,7 +530,7 @@ int exword_get_capacity(exword_t *self, exword_capacity_t *cap)
 	return rsp;
 }
 
-int exword_list(exword_t *self, directory_entry_t **entries, uint16_t *count)
+int exword_list(exword_t *self, exword_dirent_t **entries, uint16_t *count)
 {
 	int rsp;
 	int i, size;
@@ -550,8 +550,8 @@ int exword_list(exword_t *self, directory_entry_t **entries, uint16_t *count)
 			if (hi == OBEX_HDR_BODY) {
 				*count = ntohs(*(uint16_t*)hv.bs);
 				hv.bs += 2;
-				*entries = malloc(sizeof(directory_entry_t) * (*count + 1));
-				memset(*entries, 0, sizeof(directory_entry_t) * (*count + 1));
+				*entries = malloc(sizeof(exword_dirent_t) * (*count + 1));
+				memset(*entries, 0, sizeof(exword_dirent_t) * (*count + 1));
 				for (i = 0; i < *count; i++) {
 					size = ntohs(*(uint16_t*)hv.bs);
 					(*entries)[i].size = size;
@@ -568,7 +568,7 @@ int exword_list(exword_t *self, directory_entry_t **entries, uint16_t *count)
 	return rsp;
 }
 
-void exword_free_list(directory_entry_t *entries)
+void exword_free_list(exword_dirent_t *entries)
 {
 	int i;
 	for (i = 0; entries[i].name != NULL; i++) {
@@ -606,7 +606,7 @@ int exword_cryptkey(exword_t *self, exword_cryptkey_t *key)
 		return -1;
 	hv.bs = CryptKey;
 	obex_object_addheader(self->obex_ctx, obj, OBEX_HDR_NAME, hv, 20, 0);
-	hv.bs = key->username;
+	hv.bs = key->blk1;
 	obex_object_addheader(self->obex_ctx, obj, OBEX_HDR_CRYPTKEY, hv, 28, 0);
 	rsp = obex_request(self->obex_ctx, obj);
 	if ((rsp & ~OBEX_FINAL) == OBEX_RSP_SUCCESS) {
@@ -714,7 +714,7 @@ int exword_authinfo(exword_t *self, exword_authinfo_t *info)
 		return -1;
 	hv.bs = AuthInfo;
 	obex_object_addheader(self->obex_ctx, obj, OBEX_HDR_NAME, hv, 20, 0);
-	hv.bs = info->cdkey;
+	hv.bs = info->blk1;
 	obex_object_addheader(self->obex_ctx, obj, OBEX_HDR_AUTHINFO, hv, 40, 0);
 	rsp = obex_request(self->obex_ctx, obj);
 	if ((rsp & ~OBEX_FINAL) == OBEX_RSP_SUCCESS) {

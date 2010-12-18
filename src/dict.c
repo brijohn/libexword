@@ -75,7 +75,7 @@ int _find(exword_t *device, char *root, char *id, admini_t *ini)
 	char * buffer;
 	int len, i, rsp;
 
-	exword_setpath(device, root, SETPATH_NOCREATE);
+	exword_setpath(device, root, 0);
 	rsp = exword_get_file(device, "admini.inf", &buffer, &len);
 	if (rsp != 0x20)
 		return 0;
@@ -101,7 +101,7 @@ int _crack_key(exword_t *device, char *root, char *id, char *key)
 	strcpy(path, root);
 	strncat(path, id, 5);
 	strcat(path, "\\_CONTENT");
-	rsp = exword_setpath(device, path, SETPATH_NOCREATE);
+	rsp = exword_setpath(device, path, 0);
 	if (rsp != 0x20)
 		return 0;
 	rsp = exword_get_file(device, "diction.htm", &buffer, &len);
@@ -223,7 +223,7 @@ int dict_decrypt(exword_t *device, char *root, char *id)
 	char key[16];
 	admini_t info;
 	uint16_t count;
-	directory_entry_t *entries;
+	exword_dirent_t *entries;
 	if (!_find(device, root, id, &info)) {
 		printf("No dictionary with id %s installed.\n", id);
 		return 0;
@@ -258,23 +258,23 @@ int dict_auth(exword_t *device, char *user, char *auth)
 {
 	int rsp, i;
 	uint16_t count;
-	directory_entry_t *entries;
+	exword_dirent_t *entries;
 	exword_authchallenge_t c;
 	exword_authinfo_t ai;
 	exword_userid_t u;
 	memcpy(c.challenge, auth, 20);
-	memcpy(ai.cdkey, "FFFFFFFFFFFFFFFF", 16);
+	memcpy(ai.blk1, "FFFFFFFFFFFFFFFF", 16);
 	strncpy(u.name, user, 16);
-	strncpy(ai.username, user, 24);
-	exword_setpath(device, "\\_INTERNAL_00", 2);
+	strncpy(ai.blk2, user, 24);
+	exword_setpath(device, "\\_INTERNAL_00", 0);
 	rsp = exword_authchallenge(device, c);
 	if (rsp != 0x20)
 		return 0;
-	exword_setpath(device, "", 2);
+	exword_setpath(device, "", 0);
 	exword_list(device, &entries, &count);
 	for (i = 0; i < count; i++) {
 		if (strcmp(entries[i].name, "_SD_00") == 0) {
-			exword_setpath(device, "\\_SD_00", 2);
+			exword_setpath(device, "\\_SD_00", 0);
 			rsp = exword_authchallenge(device, c);
 			if (rsp != 0x20) {
 				exword_authinfo(device, &ai);
@@ -291,7 +291,7 @@ int dict_list(exword_t *device, char* root)
 	int rsp, length, i, len;
 	char * locale;
 	admini_t *info;
-	exword_setpath(device, root, 2);
+	exword_setpath(device, root, 0);
 	rsp = exword_get_file(device, "admini.inf", (char **)&info, &length);
 	if (rsp == 0x20) {
 		for (i = 0; i < length / 180; i++) {
@@ -313,10 +313,10 @@ int dict_remove(exword_t *device, char *root, char *id)
 		return 0;
 	}
 	memset(&ck, 0, sizeof(exword_cryptkey_t));
-	memcpy(ck.username, info.key, 2);
-	memcpy(ck.username + 10, info.key + 10, 2);
-	memcpy(ck.directory, info.key + 2, 8);
-	memcpy(ck.directory + 8, info.key + 12, 4);
+	memcpy(ck.blk1, info.key, 2);
+	memcpy(ck.blk1 + 10, info.key + 10, 2);
+	memcpy(ck.blk2, info.key + 2, 8);
+	memcpy(ck.blk2 + 8, info.key + 12, 4);
 	printf("Removing %s...", id);
 	rsp = exword_unlock(device);
 	rsp |= exword_cname(device, info.name, id);
@@ -343,10 +343,10 @@ int dict_install(exword_t *device, char *root, char *id)
 	char path[30];
 	int size;
 	memset(&ck, 0, sizeof(exword_cryptkey_t));
-	memcpy(ck.username, key1, 2);
-	memcpy(ck.username + 10, key1 + 10, 2);
-	memcpy(ck.directory, key1 + 2, 8);
-	memcpy(ck.directory + 8, key1 + 12, 4);
+	memcpy(ck.blk1, key1, 2);
+	memcpy(ck.blk1 + 10, key1 + 10, 2);
+	memcpy(ck.blk2, key1 + 2, 8);
+	memcpy(ck.blk2 + 8, key1 + 12, 4);
 	if (_find(device, root, id, &info)) {
 		printf("Dictionary with id %s already installed.\n", id);
 		return 0;
@@ -358,7 +358,7 @@ int dict_install(exword_t *device, char *root, char *id)
 	}
 	size = _get_size(id);
 	rsp = exword_get_capacity(device, &cap);
-	if (rsp != 0x20 || size >= cap.used || size < 0) {
+	if (rsp != 0x20 || size >= cap.free || size < 0) {
 		printf("Insufficent space on device.\n");
 		closedir(dhandle);
 		return 0;
@@ -376,7 +376,7 @@ int dict_install(exword_t *device, char *root, char *id)
 		strcpy(path, root);
 		strcat(path, id);
 		strcat(path, "\\_CONTENT");
-		exword_setpath(device, path, 0);
+		exword_setpath(device, path, 1);
 		while ((entry = readdir(dhandle)) != NULL) {
 			if (entry->d_type != DT_REG)
 				continue;
@@ -390,7 +390,7 @@ int dict_install(exword_t *device, char *root, char *id)
 		strcpy(path, root);
 		strcat(path, id);
 		strcat(path, "\\_USER");
-		exword_setpath(device, path, 0);
+		exword_setpath(device, path, 1);
 	}
 	rsp |= exword_lock(device);
 	return (rsp == 0x20);

@@ -23,15 +23,11 @@
 
 #include <stdint.h>
 
-
 typedef struct _exword exword_t;
 
 #define SD_CARD		"\\_SD_00"
 #define INTERNAL_MEM	"\\_INTERNAL_00"
 #define ROOT		""
-
-
-#define SETPATH_NOCREATE 0x02
 
 #define LIST_F_DIR     1
 #define LIST_F_UNICODE 2
@@ -53,13 +49,13 @@ typedef struct {
 	uint16_t size;   //size of structure
 	uint8_t  flags;  //flags 0 = file 1 = directory 2 = unicode
 	uint8_t  *name;  //name of entry
-} directory_entry_t;
+} exword_dirent_t;
 #pragma pack()
 
 #pragma pack(1)
 typedef struct {
 	uint32_t total;
-	uint32_t used;
+	uint32_t free;
 } exword_capacity_t;
 #pragma pack()
 
@@ -84,16 +80,16 @@ typedef struct {
 
 #pragma pack(1)
 typedef struct {
-	unsigned char cdkey[16];
-	unsigned char username[24];
+	unsigned char blk1[16];
+	unsigned char blk2[24];
 	char challenge[20];
 } exword_authinfo_t;
 #pragma pack()
 
 #pragma pack(1)
 typedef struct {
-	unsigned char username[16];
-	unsigned char directory[12];
+	unsigned char blk1[16];
+	unsigned char blk2[12];
 	unsigned char key[12];
 } exword_cryptkey_t;
 #pragma pack()
@@ -107,7 +103,7 @@ char * locale_to_utf16(char **dst, int *dstsz, const char *src, int srcsz);
 char *exword_response_to_string(int rsp);
 void exword_set_debug(int level);
 void exword_register_callbacks(exword_t *self, file_cb get, file_cb put, void *userdata);
-void exword_free_list(directory_entry_t *entries);
+void exword_free_list(exword_dirent_t *entries);
 exword_t * exword_open();
 exword_t * exword_open2(uint16_t options);
 void exword_close(exword_t *self);
@@ -118,8 +114,8 @@ int exword_remove_file(exword_t *self, char* filename);
 int exword_get_model(exword_t *self, exword_model_t * model);
 int exword_get_capacity(exword_t *self, exword_capacity_t *cap);
 int exword_sd_format(exword_t *self);
-int exword_setpath(exword_t *self, uint8_t *path, uint8_t flags);
-int exword_list(exword_t *self, directory_entry_t **entries, uint16_t *count);
+int exword_setpath(exword_t *self, uint8_t *path, uint8_t mkdir);
+int exword_list(exword_t *self, exword_dirent_t **entries, uint16_t *count);
 int exword_userid(exword_t *self, exword_userid_t id);
 int exword_cryptkey(exword_t *self, exword_cryptkey_t *key);
 int exword_cname(exword_t *self, char *name, char* dir);

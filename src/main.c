@@ -238,7 +238,7 @@ int _setpath(struct state *s, char* device, char *pathname, int mkdir)
 			p[0] = '\\';
 		p++;
 	}
-	rsp = exword_setpath(s->device, path, (mkdir ? 0 : 2));
+	rsp = exword_setpath(s->device, path, mkdir);
 	if (rsp == 0x20) {
 		free(s->cwd);
 		s->cwd = xmalloc(strlen(path) + 1);
@@ -381,7 +381,7 @@ void capacity(struct state *s)
 		return;
 	rsp = exword_get_capacity(s->device, &cap);
 	if (rsp == 0x20)
-		printf("Capacity: %d / %d\n", cap.total, cap.used);
+		printf("Capacity: %d / %d\n", cap.total, cap.free);
 	else
 		printf("%s\n", exword_response_to_string(rsp));
 }
@@ -464,7 +464,7 @@ void list(struct state *s)
 	int rsp, i;
 	char * name;
 	int len;
-	directory_entry_t *entries;
+	exword_dirent_t *entries;
 	uint16_t count;
 	if (!s->connected)
 		return;
@@ -583,7 +583,7 @@ void dict(struct state *s)
 		} else {
 			printf("Unknown subfunction\n");
 		}
-		if (exword_setpath(s->device, s->cwd, 2) != 0x20) {
+		if (exword_setpath(s->device, s->cwd, 0) != 0x20) {
 			_setpath(s, root, "/", 0);
 		}
 		free(subfunc);
@@ -606,7 +606,7 @@ void setpath(struct state *s)
 			rsp = _setpath(s, SD_CARD, path2, s->mkdir);
 			if (rsp != 0x20) {
 				printf("%s\n", exword_response_to_string(rsp));
-				exword_setpath(s->device, s->cwd, 2);
+				exword_setpath(s->device, s->cwd, 0);
 			}
 		} else {
 			rsp = sscanf(path, "mem://%ms", &path2);
@@ -614,7 +614,7 @@ void setpath(struct state *s)
 				rsp = _setpath(s, INTERNAL_MEM, path2, s->mkdir);
 				if (rsp != 0x20) {
 					printf("%s\n", exword_response_to_string(rsp));
-					exword_setpath(s->device, s->cwd, 2);
+					exword_setpath(s->device, s->cwd, 0);
 				}
 			} else {
 				printf("Invalid argument. Format (sd|mem)://<path>\n");
