@@ -454,7 +454,10 @@ void delete(struct state *s)
 		printf("No file specified\n");
 	} else {
 		printf("deleting file...");
-		rsp = exword_remove_file(s->device, filename);
+		if (filename[0] == '*')
+			rsp = exword_remove_file(s->device, filename + 1, 1);
+		else
+			rsp = exword_remove_file(s->device, filename, 0);
 		printf("%s\n", exword_response_to_string(rsp));
 	}
 }

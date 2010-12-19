@@ -413,22 +413,31 @@ int exword_get_file(exword_t *self, char* filename, char **buffer, int *len)
 }
 
 
-int exword_remove_file(exword_t *self, char* filename)
+int exword_remove_file(exword_t *self, char* filename, int convert_to_unicode)
 {
-	int rsp, len;
+	int rsp, length;
 	obex_headerdata_t hv;
+	char *unicode = NULL;
+	length = strlen(filename) + 1;
+	if (convert_to_unicode) {
+		unicode = locale_to_utf16(&unicode, &length, filename, length);
+		if (unicode == NULL)
+			return -1;
+	}
 	obex_object_t *obj = obex_object_new(self->obex_ctx, OBEX_CMD_PUT);
 	if (obj == NULL) {
+		free(unicode);
 		return -1;
 	}
 	hv.bs = Remove;
 	obex_object_addheader(self->obex_ctx, obj, OBEX_HDR_NAME, hv, 16, 0);
-	hv.bq4 = len = strlen(filename) + 1;
+	hv.bq4 = length;
 	obex_object_addheader(self->obex_ctx, obj, OBEX_HDR_LENGTH, hv, 0, 0);
-	hv.bs = filename;
-	obex_object_addheader(self->obex_ctx, obj, OBEX_HDR_BODY, hv, len, 0);
+	hv.bs = convert_to_unicode ? unicode : filename;
+	obex_object_addheader(self->obex_ctx, obj, OBEX_HDR_BODY, hv, length, 0);
 	rsp = obex_request(self->obex_ctx, obj);
 	obex_object_delete(self->obex_ctx, obj);
+	free(unicode);
 	return rsp;
 }
 

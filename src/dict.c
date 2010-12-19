@@ -322,7 +322,7 @@ int dict_remove(exword_t *device, char *root, char *id)
 	rsp |= exword_cname(device, info.name, id);
 	rsp |= exword_cryptkey(device, &ck);
 	if (rsp == 0x20)
-		rsp |= exword_remove_file(device, id);
+		rsp |= exword_remove_file(device, id, 0);
 	rsp |= exword_lock(device);
 	if (rsp == 0x20)
 		printf("Done\n");
