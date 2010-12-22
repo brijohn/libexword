@@ -42,6 +42,17 @@ static char key1[16] =
 static char key2[16] =
 	"\x5d\x5d\x5d\x5d\x5c\x42\x5c\x42\x5b\x28\x5b\x28\x5a\x0f\x5a\x0f";
 
+char *admini_list[] = {
+	"admini.inf",
+	"adminikr.inf",
+	"adminicn.inf",
+	"adminide.inf",
+	"adminies.inf",
+	"adminifr.inf",
+	"adminiru.inf",
+	NULL
+};
+
 void * xmalloc (size_t n);
 int write_file(char* filename, char *buffer, int len);
 int read_file(char* filename, char **buffer, int *len);
@@ -70,14 +81,27 @@ void _crypt(char *data, int size, char *key)
 	}
 }
 
+int _read_admini(exword_t *device, char **buffer, int *length)
+{
+	int i, rsp;
+	for (i = 0; admini_list[i] != NULL; i++) {
+		rsp = exword_get_file(device, admini_list[i], buffer, length);
+		if (rsp == 0x20 && length > 0)
+			break;
+		free(*buffer);
+		*buffer = NULL;
+	}
+	return (admini_list[i] == NULL ? -1 : i);
+}
+
 int _find(exword_t *device, char *root, char *id, admini_t *ini)
 {
 	char * buffer;
 	int len, i, rsp;
 
 	exword_setpath(device, root, 0);
-	rsp = exword_get_file(device, "admini.inf", &buffer, &len);
-	if (rsp != 0x20)
+	rsp = _read_admini(device, &buffer, &len);
+	if (rsp < 0)
 		return 0;
 	for (i = 0; i < len; i += 180) {
 		if (strncmp(buffer + i, id, 32) == 0)
@@ -290,16 +314,17 @@ int dict_list(exword_t *device, char* root)
 {
 	int rsp, length, i, len;
 	char * locale;
-	admini_t *info;
+	admini_t *info = NULL;
 	exword_setpath(device, root, 0);
-	rsp = exword_get_file(device, "admini.inf", (char **)&info, &length);
-	if (rsp == 0x20) {
+	rsp = _read_admini(device, (char **)&info, &length);
+	if (rsp >= 0) {
 		for (i = 0; i < length / 180; i++) {
-			locale =  sjis_to_locale(&locale, &len, info[i].name, strlen(info[i].name) + 1);
+			locale =  convert_to_locale("SHIFT_JIS", &locale, &len, info[i].name, strlen(info[i].name) + 1);
 			printf("%d. %s (%s)\n", i, (locale == NULL ? info[i].name : locale), info[i].id);
 			free(locale);
 		}
 	}
+	free(info);
 	return 1;
 }
 
