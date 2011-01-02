@@ -11,17 +11,28 @@ AC_CONFIG_HEADERS([config.h])
 #AC_PROG_CC
 AC_PROG_LIBTOOL
 AM_PROG_CC_C_O
-# Checks for libraries.
+
+case $host in
+  *-*-mingw32*)
+	EXTRA_LIBS="-lws2_32"
+	EXTRA_LDFLAGS="-no-undefined"
+    ;;
+esac
 
 # Checks for header files.
 AC_CHECK_HEADERS([stdlib.h string.h])
 
+# Checks for libraries.
 AC_CHECK_HEADER([readline/readline.h], [], [AC_MSG_ERROR([readline header not found])])
 AC_CHECK_LIB(readline, readline, AC_SUBST([READLINE_LIBS], [-lreadline]), [AC_MSG_ERROR([readline support not available])])
+AC_CHECK_FUNC(iconv_open, [], [AC_CHECK_LIB(iconv, libiconv_open, AC_SUBST([ICONV_LIBS], [-liconv]), [AC_MSG_ERROR([iconv support not available])])])
 
 # Checks for typedefs, structures, and compiler characteristics.
 LIBUSB_REQURED=1.0
 PKG_CHECK_MODULES([USB],[libusb-1.0 >= $LIBUSB_REQURED])
+
+AC_SUBST([EXTRA_LDFLAGS])
+AC_SUBST([EXTRA_LIBS])
 
 AC_SUBST([USB_CFLAGS])
 AC_SUBST([USB_LIBS])

@@ -28,6 +28,13 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 
+#if defined(__MINGW32__)
+# define PATH_SEP "\\"
+# define mkdir(path, mode) _mkdir(path)
+#else
+# define PATH_SEP "/"
+#endif
+
 typedef struct {
 	char id[32];
 	char key[16];
@@ -56,6 +63,15 @@ char *admini_list[] = {
 void * xmalloc (size_t n);
 int write_file(char* filename, char *buffer, int len);
 int read_file(char* filename, char **buffer, int *len);
+
+char * _mkpath(char *id, char *filename)
+{
+	char *path = xmalloc(strlen(id) + strlen(filename) + 2);
+	strcpy(path, id);
+	strcat(path, PATH_SEP);
+	strcat(path, filename);
+	return path;
+}
 
 void _crypt(char *data, int size, char *key)
 {
@@ -142,13 +158,13 @@ int _upload_file(exword_t *device, char *id, char* name)
 {
 	int length, rsp;
 	char *ext, *buffer;
-	char filename[19];
-	strcpy(filename, id);
-	strcat(filename, "/");
-	strncat(filename, name, 12);
+	char *filename;
+	filename = _mkpath(id, name);
 	rsp = read_file(filename, &buffer, &length);
-	if (rsp != 0x20)
+	if (rsp != 0x20) {
+		free(filename);
 		return 0;
+	}
 	ext = strrchr(filename, '.');
 	if (ext != NULL && (strcmp(ext, ".txt") == 0 ||
 			    strcmp(ext, ".bmp") == 0 ||
@@ -159,22 +175,23 @@ int _upload_file(exword_t *device, char *id, char* name)
 		_crypt(buffer, length, key2);
 	}
 	rsp = exword_send_file(device, name, buffer, length);
+	free(filename);
 	free(buffer);
 	return (rsp == 0x20);
 }
 
 int _download_file(exword_t *device, char *id, char* name, char *key)
 {
-	char filename[19];
+	char *filename;
 	int length, rsp;
 	char *buffer, *ext;
-	strcpy(filename, id);
-	strcat(filename, "/");
-	strncat(filename, name, 12);
+	filename = _mkpath(id, name);
 	ext = strrchr(filename, '.');
 	rsp = exword_get_file(device, name, &buffer, &length);
-	if (rsp != 0x20)
+	if (rsp != 0x20) {
+		free(filename);
 		return 0;
+	}
 	if (ext != NULL && (strcmp(ext, ".htm") == 0 ||
 			    strcmp(ext, ".bmp") == 0 ||
 			    strcmp(ext, ".txt") == 0 ||
@@ -184,6 +201,7 @@ int _download_file(exword_t *device, char *id, char* name, char *key)
 		_crypt(buffer, length, key);
 	}
 	rsp = write_file(filename, buffer, length);
+	free(filename);
 	free(buffer);
 	return (rsp == 0x20);
 }
@@ -195,22 +213,19 @@ int _get_size(char *id)
 	struct dirent *entry;
 	int size = 0;
 	int fd;
-	char filename[19];
+	char *filename;
 	dhandle = opendir(id);
 	if (dhandle == NULL)
 		return -1;
 	while ((entry = readdir(dhandle)) != NULL) {
-		if (entry->d_type != DT_REG)
-			continue;
-		strcpy(filename, id);
-		strcat(filename, "/");
-		strncat(filename, entry->d_name, 12);
+		filename = _mkpath(id, entry->d_name);
 		fd = open(filename, O_RDONLY);
 		if (fd >= 0) {
-			if (fstat(fd, &buf) == 0)
+			if (fstat(fd, &buf) == 0 && S_ISREG(buf.st_mode))
 				size += buf.st_size;
 			close(fd);
 		}
+		free(filename);
 	}
 	closedir(dhandle);
 	return size;
@@ -220,23 +235,27 @@ char * _get_name(char *id)
 {
 	int length, len;
 	char *name = NULL;
-	char filename[19];
+	char *filename;
 	char *buffer, *start, *end;
 	struct stat buf;
-	strcpy(filename, id);
-	strcat(filename ,"/diction.htm");
-	if (read_file(filename, &buffer, &length) != 0x20)
+	filename = _mkpath(id, "diction.htm");
+	if (read_file(filename, &buffer, &length) != 0x20) {
+		free(filename);
 		return NULL;
+	}
 	start = strstr(buffer, "<title>");
 	end = strstr(buffer, "</title>");
 	len = end - (start + 7);
 	if (start == NULL || end == NULL || len < 0) {
+		free(filename);
 		free(buffer);
 		return NULL;
 	}
 	name = xmalloc(len + 1);
 	memcpy(name, start + 7, len);
 	name[len] = '\0';
+	free(filename);
+	free(buffer);
 	return name;
 }
 
@@ -366,6 +385,8 @@ int dict_install(exword_t *device, char *root, char *id)
 	int rsp;
 	char *name;
 	char path[30];
+	char *filename;
+	struct stat buf;
 	int size;
 	memset(&ck, 0, sizeof(exword_cryptkey_t));
 	memcpy(ck.blk1, key1, 2);
@@ -403,13 +424,15 @@ int dict_install(exword_t *device, char *root, char *id)
 		strcat(path, "\\_CONTENT");
 		exword_setpath(device, path, 1);
 		while ((entry = readdir(dhandle)) != NULL) {
-			if (entry->d_type != DT_REG)
-				continue;
-			printf("Transferring %s...", entry->d_name);
-			if (_upload_file(device, id, entry->d_name))
-				printf("Done\n");
-			else
-				printf("Failed\n");
+			filename = _mkpath(id, entry->d_name);
+			if (stat(filename, &buf) == 0 && S_ISREG(buf.st_mode)) {
+				printf("Transferring %s...", entry->d_name);
+				if (_upload_file(device, id, entry->d_name))
+					printf("Done\n");
+				else
+					printf("Failed\n");
+			}
+			free(filename);
 		}
 		closedir(dhandle);
 		strcpy(path, root);

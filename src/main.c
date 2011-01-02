@@ -18,6 +18,7 @@
  *
  */
 
+#include <stdio.h>
 #include <stdlib.h>
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -29,6 +30,10 @@
 #include <readline/history.h>
 #include "exword.h"
 #include "list.h"
+
+#ifndef O_BINARY
+# define O_BINARY 0
+#endif
 
 struct state {
 	exword_t *device;
@@ -184,7 +189,7 @@ int read_file(char* filename, char **buffer, int *len)
 	int fd;
 	struct stat buf;
 	*buffer = NULL;
-	fd = open(filename, O_RDONLY);
+	fd = open(filename, O_RDONLY | O_BINARY);
 	if (fd < 0)
 		return 0x44;
 	fstat(fd, &buf);
@@ -204,7 +209,7 @@ int write_file(char* filename, char *buffer, int len)
 {
 	int fd, ret;
 	struct stat buf;
-	fd = open(filename, O_WRONLY | O_CREAT | O_TRUNC, S_IRUSR | S_IWUSR);
+	fd = open(filename, O_WRONLY | O_CREAT | O_TRUNC, S_IRUSR | S_IWUSR | O_BINARY);
 	if (fd < 0)
 		return 0x43;
 	ret = write(fd, buffer, len);
@@ -505,7 +510,8 @@ void dict(struct state *s)
 	int i;
 	char val;
 	char root[15];
-	char *subfunc, *id, *user, *authkey;
+	char authkey[41];
+	char *subfunc, *id, *user;
 	if (!s->connected)
 		return;
 	if (s->mode != OPEN_LIBRARY) {
@@ -534,7 +540,7 @@ void dict(struct state *s)
 				if (peek_arg(&(s->cmd_list)) == NULL) {
 					printf("No authkey specified.\n");
 				} else {
-					if (sscanf(peek_arg(&(s->cmd_list)), "0x%m[a-fA-F0-9]", &authkey) < 1) {
+					if (sscanf(peek_arg(&(s->cmd_list)), "0x%40[a-fA-F0-9]", authkey) < 1) {
 						printf("Invalid character in authkey.\n");
 					} else if (strlen(authkey) != 40) {
 						printf("Authkey wrong length. Must be 20 bytes.\n");
@@ -597,14 +603,14 @@ void setpath(struct state *s)
 {
 	int rsp;
 	char *path;
-	char *path2 = NULL;
+	char path2[256];
 	if (!s->connected)
 		return;
 	path = peek_arg(&(s->cmd_list));
 	if (path == NULL) {
 		printf("No path specified\n");
 	} else {
-		rsp = sscanf(path, "sd://%ms", &path2);
+		rsp = sscanf(path, "sd://%255s", path2);
 		if (rsp > 0) {
 			rsp = _setpath(s, SD_CARD, path2, s->mkdir);
 			if (rsp != 0x20) {
@@ -612,7 +618,7 @@ void setpath(struct state *s)
 				exword_setpath(s->device, s->cwd, 0);
 			}
 		} else {
-			rsp = sscanf(path, "mem://%ms", &path2);
+			rsp = sscanf(path, "mem://%255s", path2);
 			if (rsp > 0) {
 				rsp = _setpath(s, INTERNAL_MEM, path2, s->mkdir);
 				if (rsp != 0x20) {
@@ -623,7 +629,6 @@ void setpath(struct state *s)
 				printf("Invalid argument. Format (sd|mem)://<path>\n");
 			}
 		}
-		free(path2);
 	}
 }
 
