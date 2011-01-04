@@ -160,7 +160,7 @@ static int send_body(obex_object_t *object,
 
 	if (tx_left < ( h->buf->data_size +
 			sizeof(struct obex_byte_stream_hdr) ) )	{
-		DEBUG(self, 4, "Add BODY header\n");
+		DEBUG(object->context, 4, "Add BODY header\n");
 		body_txh->hi = OBEX_HDR_BODY;
 		body_txh->hl = htons((uint16_t)tx_left);
 
@@ -172,7 +172,7 @@ static int send_body(obex_object_t *object,
 		/* We have completely filled the tx-buffer */
 		actual = tx_left;
 	} else {
-		DEBUG(self, 4, "Add BODY_END header\n");
+		DEBUG(object->context, 4, "Add BODY_END header\n");
 
 		body_txh->hi = OBEX_HDR_BODY_END;
 		body_txh->hl = htons((uint16_t) (h->buf->data_size + sizeof(struct obex_byte_stream_hdr)));
@@ -192,10 +192,10 @@ static int obex_object_receive_body(obex_object_t *object, buf_t *msg, uint8_t h
 {
 	struct obex_header_element *element;
 
-	DEBUG(self, 4, "This is a body-header. Len=%d\n", len);
+	DEBUG(object->context, 4, "This is a body-header. Len=%d\n", len);
 
 	if (len > msg->data_size) {
-		DEBUG(self, 1, "Header %d to big. HSize=%d Buffer=%d\n",
+		DEBUG(object->context, 1, "Header %d to big. HSize=%d Buffer=%d\n",
 				hi, len, msg->data_size);
 		return -1;
 	}
@@ -206,7 +206,7 @@ static int obex_object_receive_body(obex_object_t *object, buf_t *msg, uint8_t h
 		if (object->hinted_body_len)
 			alloclen = object->hinted_body_len;
 
-		DEBUG(self, 4, "Allocating new body-buffer. Len=%d\n", alloclen);
+		DEBUG(object->context, 4, "Allocating new body-buffer. Len=%d\n", alloclen);
 		if (!(object->rx_body = buf_new(alloclen)))
 			return -1;
 	}
@@ -214,11 +214,11 @@ static int obex_object_receive_body(obex_object_t *object, buf_t *msg, uint8_t h
 	/* Reallocate body buffer if needed */
 	if (object->rx_body->data_avail + object->rx_body->tail_avail < (int) len) {
 		int t;
-		DEBUG(self, 4, "Buffer too small. Go realloc\n");
+		DEBUG(object->context, 4, "Buffer too small. Go realloc\n");
 		t = buf_total_size(object->rx_body);
 		buf_resize(object->rx_body, t + OBEX_OBJECT_ALLOCATIONTRESHOLD + len);
 		if (buf_total_size(object->rx_body) != t + OBEX_OBJECT_ALLOCATIONTRESHOLD + len) {
-			DEBUG(self, 1, "Can't realloc rx_body\n");
+			DEBUG(object->context, 1, "Can't realloc rx_body\n");
 			return -1;
 		}
 	}
@@ -226,7 +226,7 @@ static int obex_object_receive_body(obex_object_t *object, buf_t *msg, uint8_t h
 	buf_insert_end(object->rx_body, source, len);
 
 	if (hi == OBEX_HDR_BODY_END) {
-		DEBUG(self, 4, "Body receive done\n");
+		DEBUG(object->context, 4, "Body receive done\n");
 		if ( (element = malloc(sizeof(struct obex_header_element)) ) ) {
 			memset(element, 0, sizeof(struct obex_header_element));
 			element->length = object->rx_body->data_size;
@@ -240,7 +240,7 @@ static int obex_object_receive_body(obex_object_t *object, buf_t *msg, uint8_t h
 
 		object->rx_body = NULL;
 	} else
-		DEBUG(self, 4, "Normal body fragment...\n");
+		DEBUG(object->context, 4, "Normal body fragment...\n");
 
 	return 1;
 }
@@ -611,6 +611,8 @@ obex_object_t * obex_object_new(obex_t *self, uint8_t cmd)
 		return NULL;
 
 	memset(object, 0, sizeof(obex_object_t));
+
+	object->context = self;
 
 	INIT_LIST_HEAD(&object->tx_headerq);
 	INIT_LIST_HEAD(&object->rx_headerq);

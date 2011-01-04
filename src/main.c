@@ -335,7 +335,7 @@ void connect(struct state *s)
 		if (s->device == NULL) {
 			printf("device not found\n");
 		} else {
-			exword_set_debug(s->debug);
+			exword_set_debug(s->device, s->debug);
 			if (exword_connect(s->device) != 0x20) {
 				printf("connect failed\n");
 				exword_close(s->device);
@@ -652,7 +652,8 @@ void set(struct state *s)
 				printf("Value should be between 0 and 5\n");
 			} else {
 				s->debug = debug;
-				exword_set_debug(s->debug);
+				if (s->connected)
+					exword_set_debug(s->device, s->debug);
 			}
 		}
 	} else if (strcmp(opt, "mkdir") == 0) {

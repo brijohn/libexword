@@ -35,17 +35,15 @@
 #include "list.h"
 #include "databuffer.h"
 
-extern int debug;
-
 #define log_debug(format, ...) fprintf(stderr, format, ## __VA_ARGS__)
 #define log_debug_prefix ""
 
 #  define DEBUG(obex, n, format, ...) \
-          if (debug >= (n)) \
+          if (obex->debug >= (n)) \
             log_debug("%s%s(): " format, log_debug_prefix, __FUNCTION__, ## __VA_ARGS__)
 
 #define DUMPBUFFER(obex, label, msg) \
-        if (debug >=5) buf_dump(msg, label);
+        if (obex->debug >= 5) buf_dump(msg, label);
 
 #define OBEX_OBJECT_ALLOCATIONTRESHOLD 10240
 
@@ -244,6 +242,8 @@ struct obex_header_element {
 };
 
 typedef struct _obex_object {
+	obex_t *context;
+
 	time_t time;
 
 	struct list_head tx_headerq;		/* List of headers to transmit*/

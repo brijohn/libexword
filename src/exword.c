@@ -26,7 +26,6 @@
 #include "obex.h"
 #include "exword.h"
 
-int debug;
 const char Model[] = {0,'_',0,'M',0,'o',0,'d',0,'e',0,'l',0,0};
 const char List[] = {0,'_',0,'L',0,'i',0,'s',0,'t',0,0};
 const char Remove[] = {0,'_',0,'R',0,'e',0,'m',0,'o',0,'v',0,'e',0,0};
@@ -316,9 +315,9 @@ void exword_close(exword_t *self)
 	}
 }
 
-void exword_set_debug(int level)
+void exword_set_debug(exword_t *self, int level)
 {
-	debug = level;
+	self->obex_ctx->debug = level;
 }
 
 void exword_register_callbacks(exword_t *self, file_cb get, file_cb put, void *userdata)
