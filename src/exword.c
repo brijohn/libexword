@@ -26,18 +26,18 @@
 #include "obex.h"
 #include "exword.h"
 
-const char Model[] = {0,'_',0,'M',0,'o',0,'d',0,'e',0,'l',0,0};
-const char List[] = {0,'_',0,'L',0,'i',0,'s',0,'t',0,0};
-const char Remove[] = {0,'_',0,'R',0,'e',0,'m',0,'o',0,'v',0,'e',0,0};
-const char Cap[] = {0,'_',0,'C',0,'a',0,'p',0,0};
-const char SdFormat[] = {0,'_',0,'S',0,'d',0,'F',0,'o',0,'r',0,'m',0,'a',0,'t',0,0};
-const char UserId[] = {0,'_',0,'U',0,'s',0,'e',0,'r',0,'I',0,'d',0,0};
-const char Unlock[] = {0,'_',0,'U',0,'n',0,'l',0,'o',0,'c',0,'k',0,0};
-const char Lock[] = {0,'_',0, 'L',0,'o',0,'c',0,'k',0,0};
-const char CName[] = {0,'_',0,'C',0,'N',0,'a',0,'m',0,'e',0,0};
-const char CryptKey[] = {0,'_',0,'C',0,'r',0,'y',0,'p',0,'t',0,'K',0,'e',0,'y',0,0};
-const char AuthChallenge[] = {0,'_',0,'A', 0, 'u', 0, 't', 0, 'h', 0, 'C', 0, 'h', 0, 'a', 0, 'l', 0, 'l', 0, 'e', 0, 'n', 0, 'g', 0, 'e', 0, 0};
-const char AuthInfo[] = {0,'_',0,'A', 0, 'u', 0, 't', 0, 'h', 0, 'I', 0, 'n', 0, 'f', 0, 'o', 0, 0};
+static const char Model[] = {0,'_',0,'M',0,'o',0,'d',0,'e',0,'l',0,0};
+static const char List[] = {0,'_',0,'L',0,'i',0,'s',0,'t',0,0};
+static const char Remove[] = {0,'_',0,'R',0,'e',0,'m',0,'o',0,'v',0,'e',0,0};
+static const char Cap[] = {0,'_',0,'C',0,'a',0,'p',0,0};
+static const char SdFormat[] = {0,'_',0,'S',0,'d',0,'F',0,'o',0,'r',0,'m',0,'a',0,'t',0,0};
+static const char UserId[] = {0,'_',0,'U',0,'s',0,'e',0,'r',0,'I',0,'d',0,0};
+static const char Unlock[] = {0,'_',0,'U',0,'n',0,'l',0,'o',0,'c',0,'k',0,0};
+static const char Lock[] = {0,'_',0, 'L',0,'o',0,'c',0,'k',0,0};
+static const char CName[] = {0,'_',0,'C',0,'N',0,'a',0,'m',0,'e',0,0};
+static const char CryptKey[] = {0,'_',0,'C',0,'r',0,'y',0,'p',0,'t',0,'K',0,'e',0,'y',0,0};
+static const char AuthChallenge[] = {0,'_',0,'A', 0, 'u', 0, 't', 0, 'h', 0, 'C', 0, 'h', 0, 'a', 0, 'l', 0, 'l', 0, 'e', 0, 'n', 0, 'g', 0, 'e', 0, 0};
+static const char AuthInfo[] = {0,'_',0,'A', 0, 'u', 0, 't', 0, 'h', 0, 'I', 0, 'n', 0, 'f', 0, 'o', 0, 0};
 
 struct _exword {
 	obex_t *obex_ctx;
@@ -142,7 +142,7 @@ char * utf16_to_locale(char **dst, int *dstsz, const char *src, int srcsz)
 	return *dst;
 }
 
-int is_cmd(char *data, int length)
+static int is_cmd(char *data, int length)
 {
 	if (length == 10) {
 		if (memcmp(data, Cap, 10) == 0)
@@ -177,7 +177,7 @@ int is_cmd(char *data, int length)
 	return 0;
 }
 
-void exword_handle_callbacks(obex_t *self, obex_object_t *object, void *userdata)
+static void exword_handle_callbacks(obex_t *self, obex_object_t *object, void *userdata)
 {
 	exword_t *exword = (exword_t*)userdata;
 	char *tx_buffer = self->tx_msg->data;
