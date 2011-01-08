@@ -73,6 +73,15 @@ char * _mkpath(char *id, char *filename)
 	return path;
 }
 
+void _random_byte_array(char *arr, int size)
+{
+	int i;
+	srand(time(NULL));
+	for (i = 0; i < size; i++) {
+		arr[i] = (rand() % 256);
+	}
+}
+
 void _crypt(char *data, int size, char *key)
 {
 	int blks, leftover;
@@ -327,6 +336,28 @@ int dict_auth(exword_t *device, char *user, char *auth)
 	exword_free_list(entries);
 	exword_userid(device, u);
 	return 1;
+}
+
+int dict_reset(exword_t *device, char *user)
+{
+	int i;
+	exword_authinfo_t info;
+	exword_userid_t u;
+	memset(&info, 0, sizeof(exword_authinfo_t));
+	memset(&u, 0, sizeof(exword_userid_t));
+	memcpy(info.blk1, "FFFFFFFFFFFFFFFF", 16);
+	_random_byte_array(info.blk2, 24);
+	strncpy(info.blk2, user, 24);
+	strncpy(u.name, user, 16);
+	exword_setpath(device, "\\_INTERNAL_00", 0);
+	exword_authinfo(device, &info);
+	exword_userid(device, u);
+	printf("User %s with key 0x", u.name);
+	for (i = 0; i < 20; i++) {
+		printf("%02X", info.challenge[i] & 0xff);
+	}
+	printf(" registered\n");
+	return dict_auth(device, user, info.challenge);
 }
 
 int dict_list(exword_t *device, char* root)

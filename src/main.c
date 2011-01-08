@@ -109,9 +109,10 @@ struct command commands[] = {
 {"dict", dict, "dict <sub-function>\t- add-on dictionary commands\n",
 	"This command allows manipulation of add-on dictionaries. It uses\n"
 	"the storage medium of your current path as the storage device to\n"
-	"operate on. With the exception of the list sub-function you must\n"
-	"first authenticate to the dictionary.\n\n"
+	"operate on. The reset sub-function WILL delete all installed\n"
+	"dictionaries.\n\n"
 	"Sub functions:\n"
+	"reset <user>\t  - resets authentication info\n"
 	"auth <user> <key> - authenticate to dictionary\n"
 	"list\t\t  - list installed add-on dictionaries\n"
 	"decrypt <id>\t  - decrypts specified add-on dictionary\n"
@@ -530,6 +531,16 @@ void dict(struct state *s)
 		dequeue_arg(&(s->cmd_list));
 		if (strcmp(subfunc, "list") == 0) {
 			dict_list(s->device, root);
+		} else if (strcmp(subfunc, "reset") == 0) {
+			if (peek_arg(&(s->cmd_list)) == NULL) {
+				printf("No username specified.\n");
+			} else {
+				user = peek_arg(&(s->cmd_list));
+				if (dict_reset(s->device, user))
+					s->authenticated = 1;
+				else
+					s->authenticated = 0;
+			}
 		} else if (strcmp(subfunc, "auth") == 0) {
 			if (peek_arg(&(s->cmd_list)) == NULL) {
 				printf("No username specified.\n");
