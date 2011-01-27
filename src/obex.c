@@ -67,7 +67,7 @@ static int obex_verify_seq(obex_t *self, uint8_t seq) {
 			break;
 	} while (count < 100 && actual_length != 1);
 	if (retval < 0 || check[0] != seq) {
-		if (retval == LIBUSB_ERROR_OVERFLOW) {
+		if (retval == LIBUSB_ERROR_OVERFLOW || actual_length == 0) {
 			self->seq_check = seq;
 		} else {
 			DEBUG(self, 4, "Sequence mismatch %d != %d\n",

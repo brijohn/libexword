@@ -20,6 +20,9 @@ case $host in
 	EXTRA_LIBS="-lws2_32"
 	EXTRA_LDFLAGS="-no-undefined"
     ;;
+  *-*-darwin*)
+	AM_LDFLAGS="-Wl,-framework,IOKit -Wl,-framework,CoreFoundation -Wl,-prebind -no-undefined"
+    ;;
 esac
 
 # Checks for header files.
