@@ -1,4 +1,4 @@
-SUBDIRS = src                     
+SUBDIRS = src docs
 pkgconfigdir = $(libdir)/pkgconfig
 pkgconfig_DATA = libexword.pc
 

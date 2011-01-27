@@ -26,6 +26,32 @@
 #include "obex.h"
 #include "exword.h"
 
+/**
+ * \mainpage libexword API Reference
+ *
+ * \section intro Introduction
+ *
+ * libexword is an open source library that allows communication with CASIO
+ * Exword Dictionaries. The current version of the source code is available
+ * at <a href="https://github.com/brijohn/libexword">libexword homepage</a>.
+ *
+ */
+
+/** @defgroup device Device handling
+ * This page details the functions used for opening and closing devices.
+ */
+
+/** @defgroup encoding Character encoding
+ * This page details functions used for converting between different character encodings.
+ */
+
+/** @defgroup misc Miscellaneous
+ */
+
+/** @defgroup cmd Device commands
+ * This page details the functions used to send commands to the device.
+ */
+
 static const char Model[] = {0,'_',0,'M',0,'o',0,'d',0,'e',0,'l',0,0};
 static const char List[] = {0,'_',0,'L',0,'i',0,'s',0,'t',0,0};
 static const char Remove[] = {0,'_',0,'R',0,'e',0,'m',0,'o',0,'v',0,'e',0,0};
@@ -39,7 +65,13 @@ static const char CryptKey[] = {0,'_',0,'C',0,'r',0,'y',0,'p',0,'t',0,'K',0,'e',
 static const char AuthChallenge[] = {0,'_',0,'A', 0, 'u', 0, 't', 0, 'h', 0, 'C', 0, 'h', 0, 'a', 0, 'l', 0, 'l', 0, 'e', 0, 'n', 0, 'g', 0, 'e', 0, 0};
 static const char AuthInfo[] = {0,'_',0,'A', 0, 'u', 0, 't', 0, 'h', 0, 'I', 0, 'n', 0, 'f', 0, 'o', 0, 0};
 
-struct _exword {
+
+/** @ingroup device
+ * @typedef struct exword_t exword_t
+ * Structure representing an exword device handle.
+ */
+/// @cond exclude
+struct exword_t {
 	obex_t *obex_ctx;
 	uint16_t vid;
 	uint16_t pid;
@@ -53,6 +85,7 @@ struct _exword {
 	uint32_t cb_filelength;
 	uint32_t cb_transferred;
 };
+/// @endcond
 
 static char * convert (iconv_t cd,
 		char **dst, int *dstsz,
@@ -103,6 +136,19 @@ static char * convert (iconv_t cd,
 	return output;
 }
 
+/** @ingroup encoding
+ * Convert string to current locale.
+ * This function will convert a string from the specified format to
+ * the current locale.
+ * @note The destination string is allocated by the function and must
+ * be freed by the user.
+ * @param[in] fmt encoding format to convert from
+ * @param[out] dst destination string
+ * @param[out] dstsz size of destination string
+ * @param[in] src source string
+ * @param[in] srcsz size of source string
+ * @returns converted string
+ */
 char * convert_to_locale(char *fmt, char **dst, int *dstsz, const char *src, int srcsz)
 {
 	iconv_t cd;
@@ -116,6 +162,18 @@ char * convert_to_locale(char *fmt, char **dst, int *dstsz, const char *src, int
 	return *dst;
 }
 
+/** @ingroup encoding
+ * Convert current locale to utf16.
+ * This function will convert a string from the current locale to
+ * UTF-16 encoding.
+ * @note The destination string is allocated by the function and must
+ * be freed by the user.
+ * @param[out] dst destination string
+ * @param[out] dstsz size of destination string
+ * @param[in] src source string
+ * @param[in] srcsz size of source string
+ * @returns converted string
+ */
 char * locale_to_utf16(char **dst, int *dstsz, const char *src, int srcsz)
 {
 	iconv_t cd;
@@ -129,6 +187,18 @@ char * locale_to_utf16(char **dst, int *dstsz, const char *src, int srcsz)
 	return *dst;
 }
 
+/** @ingroup encoding
+ * Convert utf16 to current locale.
+ * This function will convert a string from UTF-16 to the current
+ * locale.
+ * @note The destination string is allocated by the function and must
+ * be freed by the user.
+ * @param[out] dst destination string
+ * @param[out] dstsz size of destination string
+ * @param[in] src source string
+ * @param[in] srcsz size of source string
+ * @returns converted string
+ */
 char * utf16_to_locale(char **dst, int *dstsz, const char *src, int srcsz)
 {
 	iconv_t cd;
@@ -235,11 +305,24 @@ static void exword_handle_callbacks(obex_t *self, obex_object_t *object, void *u
 	}
 }
 
+/** @ingroup device
+ * Opens device.
+ * This function will open the attached exword device with the default
+ * options of \ref OPEN_LIBRARY and \ref LOCALE_JA.
+ * @returns pointer to a device handle.
+ */
 exword_t * exword_open()
 {
 	return exword_open2(0x0020);
 }
 
+/** @ingroup device
+ * Opens device.
+ * This function will open the attached device using the specified mode
+ * and region.
+ * @param options bit mask of mode and region
+ * @returns pointer to a device handle.
+ */
 exword_t * exword_open2(uint16_t options)
 {
 	int i;
@@ -305,7 +388,11 @@ error:
 	return NULL;
 }
 
-
+/** @ingroup device
+ * Closes device.
+ * This function closes the device and performs necessary cleanup.
+ * @param self device handle
+ */
 void exword_close(exword_t *self)
 {
 	if (self) {
@@ -315,11 +402,27 @@ void exword_close(exword_t *self)
 	}
 }
 
+/** @ingroup misc
+ * Sets the debug message level.
+ * This function sets the debug level for the currentlt opened device.
+ * @param self device handle
+ * @param level debug level (0-5)
+ */
 void exword_set_debug(exword_t *self, int level)
 {
 	self->obex_ctx->debug = level;
 }
 
+/** @ingroup misc
+ * Registers callback functions for sending and recieving files.
+ * These functions will be invoked during file transfers after each
+ * chunk of the file is transferred.\n\n
+ * To remove a callback use NULL for function pointer
+ * @param self device handle
+ * @param get pointer to function for reporting download transfer progress
+ * @param put pointer to function for reporting upload transfer progress
+ * @param userdata pointer passed to callback functions
+ */
 void exword_register_callbacks(exword_t *self, file_cb get, file_cb put, void *userdata)
 {
 	self->put_file_cb = put;
@@ -327,6 +430,12 @@ void exword_register_callbacks(exword_t *self, file_cb get, file_cb put, void *u
 	self->cb_userdata = userdata;
 }
 
+/** @ingroup cmd
+ * Send connect command.
+ * @note Any commands sent before this will fail.
+ * @param self device handle
+ * @return response code
+ */
 int exword_connect(exword_t *self)
 {
 	int rsp;
@@ -338,6 +447,15 @@ int exword_connect(exword_t *self)
 	return rsp;
 }
 
+/** @ingroup cmd
+ * Upload a file to device.
+ * This command will write the given file data as file filename to the device.
+ * @param self device handle
+ * @param filename name of file being sent.
+ * @param buffer pointer to file data.
+ * @param len size of buffer.
+ * @return response code
+ */
 int exword_send_file(exword_t *self, char* filename, char *buffer, int len)
 {
 	int length, rsp;
@@ -363,6 +481,16 @@ int exword_send_file(exword_t *self, char* filename, char *buffer, int len)
 	return rsp;
 }
 
+/** @ingroup cmd
+ * Download a file from device.
+ * This command will read a file from the device.
+ * @note buffer is allocated by the function and must be freed by the user.
+ * @param[in] self device handle
+ * @param[in] filename name of file being sent.
+ * @param[out] buffer pointer to recieved file data.
+ * @param[out] len size of buffer.
+ * @return response code
+ */
 int exword_get_file(exword_t *self, char* filename, char **buffer, int *len)
 {
 	int length, rsp;
@@ -400,7 +528,15 @@ int exword_get_file(exword_t *self, char* filename, char **buffer, int *len)
 	return rsp;
 }
 
-
+/** @ingroup cmd
+ * Remove a file from device.
+ * This command will remove the given file from the device.\n\n
+ * Dataplus5 models require convert_to_unicode option when operating in Text mode.
+ * @param self device handle
+ * @param filename name of file being sent
+ * @param convert_to_unicode automatically convert filename to UTF-16 if true
+ * @return response code
+ */
 int exword_remove_file(exword_t *self, char* filename, int convert_to_unicode)
 {
 	int rsp, length;
@@ -429,6 +565,12 @@ int exword_remove_file(exword_t *self, char* filename, int convert_to_unicode)
 	return rsp;
 }
 
+/** @ingroup cmd
+ * Format SD card.
+ * This command will format the inserted SD card.
+ * @param self device handle
+ * @return response code
+ */
 int exword_sd_format(exword_t *self)
 {
 	int rsp, len;
@@ -448,6 +590,16 @@ int exword_sd_format(exword_t *self)
 	return rsp;
 }
 
+/** @ingroup cmd
+ * Sets the current path on device.
+ * Pathname should start with either \\_INTERNAL_00 or \\_SD_00, which will
+ * access either internal memory or the sd card respectively.\n\n
+ * Passing an empty string for path will allow you to get a list of storage mediums.
+ * @param self device handle
+ * @param path new path
+ * @param mkdir if true create path if non existant
+ * @return response code
+ */
 int exword_setpath(exword_t *self, uint8_t *path, uint8_t mkdir)
 {
 	int len, rsp;
@@ -476,6 +628,13 @@ int exword_setpath(exword_t *self, uint8_t *path, uint8_t mkdir)
 	return rsp;
 }
 
+/** @ingroup cmd
+ * Get model information.
+ * This function retrieves the model information of the connected device.
+ * @param[in] self device handle
+ * @param[out] model model information
+ * @return response code
+ */
 int exword_get_model(exword_t *self, exword_model_t * model)
 {
 	int rsp;
@@ -501,6 +660,14 @@ int exword_get_model(exword_t *self, exword_model_t * model)
 	return rsp;
 }
 
+/** @ingroup cmd
+ * Get storage capacity.
+ * This function retrieves the storage capacity the the currently selected storage medium.\n
+ * The storage medium being accessed is selected using \ref exword_setpath.
+ * @param[in] self device handle
+ * @param[out] cap capacity
+ * @return response code
+ */
 int exword_get_capacity(exword_t *self, exword_capacity_t *cap)
 {
 	int rsp;
@@ -527,6 +694,15 @@ int exword_get_capacity(exword_t *self, exword_capacity_t *cap)
 	return rsp;
 }
 
+/** @ingroup cmd
+ * Get file list.
+ * This function will retreive the file list for the currently set path.\n
+ * Entries must be freed with \ref exword_free_list.
+ * @param[in] self device handle
+ * @param[out] entries array of directory entries
+ * @param[out] count number of elements in entries array
+ * @return response code
+ */
 int exword_list(exword_t *self, exword_dirent_t **entries, uint16_t *count)
 {
 	int rsp;
@@ -565,6 +741,11 @@ int exword_list(exword_t *self, exword_dirent_t **entries, uint16_t *count)
 	return rsp;
 }
 
+/** @ingroup cmd
+ * Free list of directory entries.
+ * @param entries array of directory entries
+ * @return response code
+ */
 void exword_free_list(exword_dirent_t *entries)
 {
 	int i;
@@ -574,6 +755,13 @@ void exword_free_list(exword_dirent_t *entries)
 	free(entries);
 }
 
+/** @ingroup cmd
+ * Set userid.
+ * This function updates the user_id of connected device.
+ * @param self device handle
+ * @param id new user_id
+ * @return response code
+ */
 int exword_userid(exword_t *self, exword_userid_t id)
 {
 	int rsp;
@@ -592,6 +780,14 @@ int exword_userid(exword_t *self, exword_userid_t id)
 	return rsp;
 }
 
+/** @ingroup cmd
+ * Generate new CryptKey.
+ * This function is used to gerneate the CryptKey used for encryptng dictionaries.\n\n
+ * key.blk1 and key.blk2 are used for input and the key will be returned in key.key.
+ * @param[in] self device handle
+ * @param[in,out] key CryptKey info
+ * @return response code
+ */
 int exword_cryptkey(exword_t *self, exword_cryptkey_t *key)
 {
 	int rsp;
@@ -618,6 +814,14 @@ int exword_cryptkey(exword_t *self, exword_cryptkey_t *key)
 	return rsp;
 }
 
+/** @ingroup cmd
+ * Set add-on dictionary name information.
+ * This function is used to register the add-on dictionary with device.
+ * @param self device handle
+ * @param name add-on name
+ * @param dir install directory
+ * @return response code
+ */
 int exword_cname(exword_t *self, char *name, char* dir)
 {
 	int rsp;
@@ -646,6 +850,12 @@ int exword_cname(exword_t *self, char *name, char* dir)
 	return rsp;
 }
 
+/** @ingroup cmd
+ * Unlock device.
+ * This function needs to be called after dding or removing add-on dictionaries.
+ * @param self device handle
+ * @return response code
+ */
 int exword_unlock(exword_t *self)
 {
 	int rsp;
@@ -664,6 +874,12 @@ int exword_unlock(exword_t *self)
 	return rsp;
 }
 
+/** @ingroup cmd
+ * Lock device.
+ * This function needs to be called prior to adding or removing add-on dictionaries.
+ * @param self device handle
+ * @return response code
+ */
 int exword_lock(exword_t *self)
 {
 	int rsp;
@@ -682,6 +898,13 @@ int exword_lock(exword_t *self)
 	return rsp;
 }
 
+/** @ingroup cmd
+ * Authenticate to device.
+ * This function will try to authenticate to the currently connected device.
+ * @param self device handle
+ * @param challenge 20 byte challenge key
+ * @return response code
+ */
 int exword_authchallenge(exword_t *self, exword_authchallenge_t challenge)
 {
 	int rsp;
@@ -700,6 +923,14 @@ int exword_authchallenge(exword_t *self, exword_authchallenge_t challenge)
 	return rsp;
 }
 
+/** @ingroup cmd
+ * Reset authentication info.
+ * On return info.challenge will contain the new challenge key for the device.
+ * @note Issuing this command causes the device to delete all installed dictionaries.
+ * @param[in] self device handle
+ * @param[in, out] info authentication info
+ * @return response code
+ */
 int exword_authinfo(exword_t *self, exword_authinfo_t *info)
 {
 	int rsp;
@@ -726,6 +957,12 @@ int exword_authinfo(exword_t *self, exword_authinfo_t *info)
 	return rsp;
 }
 
+/** @ingroup cmd
+ * Disconnect from device.
+ * This function should be the last command sent and will disconnect from the device.
+ * @param self device handle
+ * @return response code
+ */
 int exword_disconnect(exword_t *self)
 {
 	int rsp;
@@ -737,6 +974,12 @@ int exword_disconnect(exword_t *self)
 	return rsp;
 }
 
+/** @ingroup misc
+ * Converts response code to string
+ * @note return value is a static string and should not be freed.
+ * @param rsp response code
+ * @return response message
+ */
 char *exword_response_to_string(int rsp)
 {
 	switch (rsp) {

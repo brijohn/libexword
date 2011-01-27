@@ -23,7 +23,7 @@
 
 #include <stdint.h>
 
-typedef struct _exword exword_t;
+typedef struct exword_t exword_t;
 
 #define SD_CARD		"\\_SD_00"
 #define INTERNAL_MEM	"\\_INTERNAL_00"
@@ -32,69 +32,151 @@ typedef struct _exword exword_t;
 #define LIST_F_DIR     1
 #define LIST_F_UNICODE 2
 
+/** @ingroup device
+ * Japanese Region
+ */
 #define LOCALE_JA      0x20
+/** @ingroup device
+ * Korean Region
+ */
 #define LOCALE_KR      0x40
+/** @ingroup device
+ * Chinese Region
+ */
 #define LOCALE_CN      0x60
+/** @ingroup device
+ * German Region
+ */
 #define LOCALE_DE      0x80
+/** @ingroup device
+ * Spanish Region
+ */
 #define LOCALE_ES      0xa0
+/** @ingroup device
+ * French Region
+ */
 #define LOCALE_FR      0xc0
+/** @ingroup device
+ * Russian Region
+ */
 #define LOCALE_RU      0xe0
 
+/** @ingroup device
+ *  Opens device in library mode.
+ *  This mode is used to install and remove add-on dictionaries.
+ */
 #define OPEN_LIBRARY   0x0000
+/** @ingroup device
+ *  Opens device in text mode.
+ *  This mode is used to upload and delete text files.
+ */
 #define OPEN_TEXT      0x0100
+/** @ingroup device
+ *  Opens device in CD mode.
+ *  This mode is used to upload cd audio.
+ */
 #define OPEN_CD        0x0200
 
+/**
+ * Structure representing a directory entry.
+ */
 #pragma pack(1)
 typedef struct {
-	uint16_t size;   //size of structure
-	uint8_t  flags;  //flags 0 = file 1 = directory 2 = unicode
-	uint8_t  *name;  //name of entry
+	/** Size of structure */
+	uint16_t size;
+	/** Flags.
+	 * Field representing type of entry.
+	 * - 0 = file
+	 * - 1 = directory
+	 * - 2 = unicode name
+	 */
+	uint8_t  flags;
+	/** Entry name */
+	uint8_t  *name;
 } exword_dirent_t;
 #pragma pack()
 
+/**
+ * Structure representing a device's storage capacity.
+ */
 #pragma pack(1)
 typedef struct {
+	/** total space (in bytes) */
 	uint32_t total;
+	/** space available (in bytes) */
 	uint32_t free;
 } exword_capacity_t;
 #pragma pack()
 
+/**
+ * Structure representing the device model.
+ */
 #pragma pack(1)
 typedef struct {
+	/** Main model string */
 	char model[15];
+	/** sub model string */
 	char sub_model[6];
 } exword_model_t;
 #pragma pack()
 
+/**
+ * Structure representing user name.
+ */
 #pragma pack(1)
 typedef struct {
+	/** User name */
 	char name[17];
 } exword_userid_t;
 #pragma pack()
 
+/**
+ * Structure representing an authentication challenge.
+ */
 #pragma pack(1)
 typedef struct {
+	/** Challenge key */
 	char challenge[20];
 } exword_authchallenge_t;
 #pragma pack()
 
+/**
+ * Structure representing authentication info.
+ */
 #pragma pack(1)
 typedef struct {
+	/** Input block 1 */
 	unsigned char blk1[16];
+	/** Input block 2 */
 	unsigned char blk2[24];
+	/** Generated challenge key */
 	char challenge[20];
 } exword_authinfo_t;
 #pragma pack()
 
+/**
+ * Structure representing a CryptKey
+ */
 #pragma pack(1)
 typedef struct {
+	/** Input block 1 */
 	unsigned char blk1[16];
+	/** Input block 2 */
 	unsigned char blk2[12];
+	/** Generated CryptKey */
 	unsigned char key[12];
 } exword_cryptkey_t;
 #pragma pack()
 
-typedef void (*file_cb)(char *, uint32_t, uint32_t, void *);
+/** @ingroup misc
+ * File transfer callback function,
+ * @param filename name of file currently being transferred
+ * @param transferred number of bytes transferred so far
+ * @param length total length of file
+ * @param user_data data pointer specified in \ref exword_register_callbacks
+ * @see exword_register_callbacks
+ */
+typedef void (*file_cb)(char *filename, uint32_t transferred, uint32_t length, void *user_data);
 
 char * convert_to_locale(char *fmt, char **dst, int *dstsz, const char *src, int srcsz);
 char * utf16_to_locale(char **dst, int *dstsz, const char *src, int srcsz);
