@@ -3,6 +3,7 @@ pkgconfigdir = $(libdir)/pkgconfig
 pkgconfig_DATA = libexword.pc
 
 DISTCLEANFILES = src/Makefile.in \
+                 docs/Makefile.in \
                  Makefile.in \
                  aclocal.m4 \
                  configure \

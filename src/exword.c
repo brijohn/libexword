@@ -27,9 +27,12 @@
 #include "exword.h"
 
 /**
- * \mainpage libexword API Reference
+ * @page Protocol
+ * @verbinclude protocol.txt
  *
- * \section intro Introduction
+ * @mainpage libexword API Reference
+ *
+ * @section intro Introduction
  *
  * libexword is an open source library that allows communication with CASIO
  * Exword Dictionaries. The current version of the source code is available
