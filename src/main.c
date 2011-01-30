@@ -210,7 +210,7 @@ int write_file(char* filename, char *buffer, int len)
 {
 	int fd, ret;
 	struct stat buf;
-	fd = open(filename, O_WRONLY | O_CREAT | O_TRUNC, S_IRUSR | S_IWUSR | O_BINARY);
+	fd = open(filename, O_WRONLY | O_CREAT | O_TRUNC | O_BINARY, S_IRUSR | S_IWUSR);
 	if (fd < 0)
 		return 0x43;
 	ret = write(fd, buffer, len);
