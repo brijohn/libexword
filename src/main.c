@@ -185,11 +185,12 @@ void fill_arg_list(struct list_head *head, char * str)
 	}
 }
 
-int read_file(char* filename, char **buffer, int *len)
+int read_file(const char* filename, char **buffer, int *len)
 {
 	int fd;
 	struct stat buf;
 	*buffer = NULL;
+	*len = 0;
 	fd = open(filename, O_RDONLY | O_BINARY);
 	if (fd < 0)
 		return 0x44;
@@ -199,6 +200,7 @@ int read_file(char* filename, char **buffer, int *len)
 	if (*len < 0) {
 		free(*buffer);
 		*buffer = NULL;
+		*len = 0;
 		close(fd);
 		return 0x50;
 	}
@@ -206,7 +208,7 @@ int read_file(char* filename, char **buffer, int *len)
 	return 0x20;
 }
 
-int write_file(char* filename, char *buffer, int len)
+int write_file(const char* filename, char *buffer, int len)
 {
 	int fd, ret;
 	struct stat buf;
@@ -549,7 +551,12 @@ void dict(struct state *s)
 				strcpy(user, peek_arg(&(s->cmd_list)));
 				dequeue_arg(&(s->cmd_list));
 				if (peek_arg(&(s->cmd_list)) == NULL) {
-					printf("No authkey specified.\n");
+					if (dict_auth(s->device, user, NULL)) {
+						s->authenticated = 1;
+						printf("Authentication sucessful.\n");
+					} else {
+						printf("Authentication failed.\n");
+					}
 				} else {
 					if (sscanf(peek_arg(&(s->cmd_list)), "0x%40[a-fA-F0-9]", authkey) < 1) {
 						printf("Invalid character in authkey.\n");

@@ -17,11 +17,11 @@ AM_CONDITIONAL([DOX_ENABLED], [test "x$DOX_PROG" != "xmissing"])
 
 case $host in
   *-*-mingw32*)
-	EXTRA_LIBS="-lws2_32"
+	EXTRA_LIBS="-lws2_32 -lshlwapi"
 	EXTRA_LDFLAGS="-no-undefined"
     ;;
   *-*-darwin*)
-	AM_LDFLAGS="-Wl,-framework,IOKit -Wl,-framework,CoreFoundation -Wl,-prebind -no-undefined"
+	AM_LDFLAGS="-Wl,-framework,IOKit -Wl,-framework,CoreServices -Wl,-framework,CoreFoundation -Wl,-prebind -no-undefined"
     ;;
 esac
 

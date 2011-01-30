@@ -29,8 +29,14 @@
 #include <fcntl.h>
 
 #if defined(__MINGW32__)
+# include <shlwapi.h>
+# include <shlobj.h>
+# define PATH_MAX MAX_PATH
 # define PATH_SEP "\\"
 # define mkdir(path, mode) _mkdir(path)
+#elif defined(__APPLE__) && defined(__MACH__)
+# include <Carbon/Carbon.h>
+# define PATH_SEP "/"
 #else
 # define PATH_SEP "/"
 #endif
@@ -61,25 +67,16 @@ char *admini_list[] = {
 };
 
 void * xmalloc (size_t n);
-int write_file(char* filename, char *buffer, int len);
-int read_file(char* filename, char **buffer, int *len);
+int write_file(const char* filename, char *buffer, int len);
+int read_file(const char* filename, char **buffer, int *len);
 
-char * _mkpath(char *id, char *filename)
+char * _mkpath(const char *id, const char *filename)
 {
 	char *path = xmalloc(strlen(id) + strlen(filename) + 2);
 	strcpy(path, id);
 	strcat(path, PATH_SEP);
 	strcat(path, filename);
 	return path;
-}
-
-void _random_byte_array(char *arr, int size)
-{
-	int i;
-	srand(time(NULL));
-	for (i = 0; i < size; i++) {
-		arr[i] = (rand() % 256);
-	}
 }
 
 void _crypt(char *data, int size, char *key)
@@ -268,6 +265,125 @@ char * _get_name(char *id)
 	return name;
 }
 
+const char * _get_data_dir()
+{
+	static char data_dir[PATH_MAX];
+#if defined(__MINGW32__)
+	if(SUCCEEDED(SHGetFolderPath(NULL,
+		     CSIDL_APPDATA|CSIDL_FLAG_CREATE,
+		     NULL,
+		     0,
+		     data_dir))) {
+		PathAppend(data_dir, "exword");
+	} else {
+		return NULL;
+	}
+#elif defined(__APPLE__) && defined(__MACH__)
+	int length;
+	FSRef foundRef;
+	OSStatus validPath;
+	OSErr err = FSFindFolder(kUserDomain, kApplicationSupportFolderType, kCreateFolder, &foundRef);
+	if (err != noErr)
+		return NULL;
+	validPath = FSRefMakePath(&foundRef, data_dir, PATH_MAX);
+        if (validPath != noErr)
+		return NULL;
+	length = strlen(data_dir) + strlen("/exword");
+	if (length >= PATH_MAX)
+		return NULL;
+	strcat(data_dir, "/exword");
+#else
+	int length = 0;
+	const char * xdg_data_home;
+	xdg_data_home = getenv("XDG_DATA_HOME");
+	if (xdg_data_home == NULL) {
+		xdg_data_home = getenv("HOME");
+		if (xdg_data_home == NULL)
+			return NULL;
+		length = strlen(xdg_data_home);
+		if (length >= PATH_MAX)
+			return NULL;
+		strcpy(data_dir, xdg_data_home);
+		length += strlen("/.local/share/exword");
+		if (length >= PATH_MAX)
+			return NULL;
+		strcat(data_dir, "/.local/share/exword");
+	} else {
+		length = strlen(xdg_data_home);
+		if (length >= PATH_MAX)
+			return NULL;
+		strcpy(data_dir, xdg_data_home);
+		length += strlen("/exword");
+		if (length >= PATH_MAX)
+			return NULL;
+		strcat(data_dir, "/exword");
+	}
+#endif
+	return data_dir;
+}
+
+int _save_user_key(char *name, char *key)
+{
+	char *buffer;
+	char *file;
+	int length, ret, str_len;
+	int i = 0;
+	const char *dir = _get_data_dir();
+	if (dir == NULL)
+		return 0;
+	mkdir(dir, 0770);
+	file = _mkpath(dir, "users.dat");
+	ret = read_file(file, &buffer, &length);
+	if (ret == 0x50) {
+		free(file);
+		return 0;
+	}
+	while (i < length) {
+		if (strcmp(name, buffer + i + 1) == 0) {
+			free(file);
+			free(buffer);
+			return 1;
+		}
+		i += 21 + *(buffer + i);
+	}
+	str_len = strlen(name) + 1;
+	buffer = realloc(buffer, length + str_len + 21);
+	buffer[length] = str_len;
+	memcpy(buffer + length + 1, name, str_len);
+	memcpy(buffer + length + 1 + str_len, key, 20);
+	ret = write_file(file, buffer, length + str_len + 21);
+	free(file);
+	free(buffer);
+	return (ret == 0x20 ? 1 : 0);
+}
+
+int _load_user_key(char *name, char *key)
+{
+	char *buffer;
+	char *file;
+	int length, ret;
+	int i = 0;
+	const char *dir = _get_data_dir();
+	if (dir == NULL)
+		return 0;
+	mkdir(dir, 0770);
+	file = _mkpath(dir, "users.dat");
+	ret = read_file(file, &buffer, &length);
+	free(file);
+	if (ret != 0x20)
+		return 0;
+	while (i < length) {
+		if (strcmp(name, buffer + i + 1) == 0) {
+			memcpy(key, buffer + i + 1 + *(buffer + i), 20);
+			free(buffer);
+			return 1;
+		}
+		i += 21 + *(buffer + i);
+	}
+	free(buffer);
+	return 0;
+}
+
 int dict_decrypt(exword_t *device, char *root, char *id)
 {
 	int i, rsp;
@@ -314,7 +430,13 @@ int dict_auth(exword_t *device, char *user, char *auth)
 	exword_authchallenge_t c;
 	exword_authinfo_t ai;
 	exword_userid_t u;
-	memcpy(c.challenge, auth, 20);
+	if (auth == NULL) {
+		rsp = _load_user_key(user, c.challenge);
+		if (!rsp)
+			return 0;
+	} else {
+		memcpy(c.challenge, auth, 20);
+	}
 	memcpy(ai.blk1, "FFFFFFFFFFFFFFFF", 16);
 	strncpy(u.name, user, 16);
 	strncpy(ai.blk2, user, 24);
@@ -346,7 +468,6 @@ int dict_reset(exword_t *device, char *user)
 	memset(&info, 0, sizeof(exword_authinfo_t));
 	memset(&u, 0, sizeof(exword_userid_t));
 	memcpy(info.blk1, "FFFFFFFFFFFFFFFF", 16);
-	_random_byte_array(info.blk2, 24);
 	strncpy(info.blk2, user, 24);
 	strncpy(u.name, user, 16);
 	exword_setpath(device, "\\_INTERNAL_00", 0);
@@ -357,6 +478,8 @@ int dict_reset(exword_t *device, char *user)
 		printf("%02X", info.challenge[i] & 0xff);
 	}
 	printf(" registered\n");
+	if (!_save_user_key(user, info.challenge))
+		printf("Warning - Failed to save authentication info!\n");
 	return dict_auth(device, user, info.challenge);
 }
 
