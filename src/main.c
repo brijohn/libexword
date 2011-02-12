@@ -375,10 +375,20 @@ void model(struct state *s)
 	if (!s->connected)
 		return;
 	rsp = exword_get_model(s->device, &model);
-	if (rsp == 0x20)
+	if (rsp == 0x20) {
 		printf("Model: %s\nSub: %s\n", model.model, model.sub_model);
-	else
+		if (model.capabilities & CAP_EXT)
+			printf("Extended: %s\n", model.ext_model);
+		if ((model.capabilities & ~CAP_EXT) != 0) {
+			printf("Capabilities: %s %s %s %s\n",
+				model.capabilities & CAP_SW ? "SW" : "",
+				model.capabilities & CAP_P ? "P" : "",
+				model.capabilities & CAP_F ? "F" : "",
+				model.capabilities & CAP_C ? "C" : "");
+		}
+	} else {
 		printf("%s\n", exword_response_to_string(rsp));
+	}
 }
 
 void capacity(struct state *s)

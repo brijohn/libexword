@@ -77,6 +77,27 @@ typedef struct exword_t exword_t;
  */
 #define OPEN_CD        0x0200
 
+/** @ingroup cmd
+ * SW capability
+ */
+#define CAP_SW         (1 << 0)
+/** @ingroup cmd
+ * P capability
+ */
+#define CAP_P          (1 << 1)
+/** @ingroup cmd
+ * F capability
+ */
+#define CAP_F          (1 << 2)
+/** @ingroup cmd
+ * C capability
+ */
+#define CAP_C          (1 << 3)
+/** @ingroup cmd
+ * Device contains extended model information
+ */
+#define CAP_EXT        (1 << 15)
+
 /**
  * Structure representing a directory entry.
  */
@@ -117,6 +138,10 @@ typedef struct {
 	char model[15];
 	/** sub model string */
 	char sub_model[6];
+	/** extended model string (DP5+) */
+	char ext_model[6];
+	/** Capability bit mask */
+	short capabilities;
 } exword_model_t;
 #pragma pack()
 

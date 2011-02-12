@@ -642,6 +642,7 @@ int exword_get_model(exword_t *self, exword_model_t * model)
 {
 	int rsp;
 	obex_headerdata_t hv;
+	const uint8_t *ptr;
 	uint8_t hi;
 	uint32_t hv_size;
 	obex_object_t *obj = obex_object_new(self->obex_ctx, OBEX_CMD_GET);
@@ -653,8 +654,25 @@ int exword_get_model(exword_t *self, exword_model_t * model)
 	if ((rsp & ~OBEX_FINAL) == OBEX_RSP_SUCCESS) {
 		while (obex_object_getnextheader(self->obex_ctx, obj, &hi, &hv, &hv_size)) {
 			if (hi == OBEX_HDR_BODY) {
+				model->capabilities = 0;
 				memcpy(model->model, hv.bs, 15);
 				memcpy(model->sub_model, hv.bs + 14, 6);
+				ptr = hv.bs + 23;
+				while (ptr < (hv.bs + hv_size)) {
+					if (memcmp(ptr, "SW", 2) == 0) {
+						model->capabilities |= CAP_SW;
+					} else if (memcmp(ptr, "P", 1) == 0) {
+						model->capabilities |= CAP_P;
+					} else if (memcmp(ptr, "F", 1) == 0) {
+						model->capabilities |= CAP_F;
+					} else if (memcmp(ptr, "CY", 2) == 0) {
+						memcpy(model->ext_model, ptr, 6);
+						model->capabilities |= CAP_EXT;
+					} else if (memcmp(ptr, "C", 1) == 0) {
+						model->capabilities |= CAP_C;
+					}
+					ptr += strlen(ptr) + 1;
+				}
 				break;
 			}
 		}
