@@ -22,24 +22,13 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <exword.h>
 #include <unistd.h>
 #include <dirent.h>
 #include <sys/stat.h>
 #include <fcntl.h>
 
-#if defined(__MINGW32__)
-# include <shlwapi.h>
-# include <shlobj.h>
-# define PATH_MAX MAX_PATH
-# define PATH_SEP "\\"
-# define mkdir(path, mode) _mkdir(path)
-#elif defined(__APPLE__) && defined(__MACH__)
-# include <Carbon/Carbon.h>
-# define PATH_SEP "/"
-#else
-# define PATH_SEP "/"
-#endif
+#include "exword.h"
+#include "util.h"
 
 typedef struct {
 	char id[32];
@@ -65,19 +54,6 @@ char *admini_list[] = {
 	"adminiru.inf",
 	NULL
 };
-
-void * xmalloc (size_t n);
-int write_file(const char* filename, char *buffer, int len);
-int read_file(const char* filename, char **buffer, int *len);
-
-char * _mkpath(const char *id, const char *filename)
-{
-	char *path = xmalloc(strlen(id) + strlen(filename) + 2);
-	strcpy(path, id);
-	strcat(path, PATH_SEP);
-	strcat(path, filename);
-	return path;
-}
 
 void _crypt(char *data, int size, char *key)
 {
@@ -165,7 +141,7 @@ int _upload_file(exword_t *device, char *id, char* name)
 	int length, rsp;
 	char *ext, *buffer;
 	char *filename;
-	filename = _mkpath(id, name);
+	filename = mkpath(id, name);
 	rsp = read_file(filename, &buffer, &length);
 	if (rsp != 0x20) {
 		free(filename);
@@ -191,7 +167,7 @@ int _download_file(exword_t *device, char *id, char* name, char *key)
 	char *filename;
 	int length, rsp;
 	char *buffer, *ext;
-	filename = _mkpath(id, name);
+	filename = mkpath(id, name);
 	ext = strrchr(filename, '.');
 	rsp = exword_get_file(device, name, &buffer, &length);
 	if (rsp != 0x20) {
@@ -224,7 +200,7 @@ int _get_size(char *id)
 	if (dhandle == NULL)
 		return -1;
 	while ((entry = readdir(dhandle)) != NULL) {
-		filename = _mkpath(id, entry->d_name);
+		filename = mkpath(id, entry->d_name);
 		fd = open(filename, O_RDONLY);
 		if (fd >= 0) {
 			if (fstat(fd, &buf) == 0 && S_ISREG(buf.st_mode))
@@ -244,7 +220,7 @@ char * _get_name(char *id)
 	char *filename;
 	char *buffer, *start, *end;
 	struct stat buf;
-	filename = _mkpath(id, "diction.htm");
+	filename = mkpath(id, "diction.htm");
 	if (read_file(filename, &buffer, &length) != 0x20) {
 		free(filename);
 		return NULL;
@@ -265,74 +241,17 @@ char * _get_name(char *id)
 	return name;
 }
 
-const char * _get_data_dir()
-{
-	static char data_dir[PATH_MAX];
-#if defined(__MINGW32__)
-	if(SUCCEEDED(SHGetFolderPath(NULL,
-		     CSIDL_APPDATA|CSIDL_FLAG_CREATE,
-		     NULL,
-		     0,
-		     data_dir))) {
-		PathAppend(data_dir, "exword");
-	} else {
-		return NULL;
-	}
-#elif defined(__APPLE__) && defined(__MACH__)
-	int length;
-	FSRef foundRef;
-	OSStatus validPath;
-	OSErr err = FSFindFolder(kUserDomain, kApplicationSupportFolderType, kCreateFolder, &foundRef);
-	if (err != noErr)
-		return NULL;
-	validPath = FSRefMakePath(&foundRef, data_dir, PATH_MAX);
-        if (validPath != noErr)
-		return NULL;
-	length = strlen(data_dir) + strlen("/exword");
-	if (length >= PATH_MAX)
-		return NULL;
-	strcat(data_dir, "/exword");
-#else
-	int length = 0;
-	const char * xdg_data_home;
-	xdg_data_home = getenv("XDG_DATA_HOME");
-	if (xdg_data_home == NULL) {
-		xdg_data_home = getenv("HOME");
-		if (xdg_data_home == NULL)
-			return NULL;
-		length = strlen(xdg_data_home);
-		if (length >= PATH_MAX)
-			return NULL;
-		strcpy(data_dir, xdg_data_home);
-		length += strlen("/.local/share/exword");
-		if (length >= PATH_MAX)
-			return NULL;
-		strcat(data_dir, "/.local/share/exword");
-	} else {
-		length = strlen(xdg_data_home);
-		if (length >= PATH_MAX)
-			return NULL;
-		strcpy(data_dir, xdg_data_home);
-		length += strlen("/exword");
-		if (length >= PATH_MAX)
-			return NULL;
-		strcat(data_dir, "/exword");
-	}
-#endif
-	return data_dir;
-}
-
 int _save_user_key(char *name, char *key)
 {
 	char *buffer;
 	char *file;
 	int length, ret, str_len;
 	int i = 0;
-	const char *dir = _get_data_dir();
+	const char *dir = get_data_dir();
 	if (dir == NULL)
 		return 0;
 	mkdir(dir, 0770);
-	file = _mkpath(dir, "users.dat");
+	file = mkpath(dir, "users.dat");
 	ret = read_file(file, &buffer, &length);
 	if (ret == 0x50) {
 		free(file);
@@ -363,11 +282,11 @@ int _load_user_key(char *name, char *key)
 	char *file;
 	int length, ret;
 	int i = 0;
-	const char *dir = _get_data_dir();
+	const char *dir = get_data_dir();
 	if (dir == NULL)
 		return 0;
 	mkdir(dir, 0770);
-	file = _mkpath(dir, "users.dat");
+	file = mkpath(dir, "users.dat");
 	ret = read_file(file, &buffer, &length);
 	free(file);
 	if (ret != 0x20)
@@ -578,7 +497,7 @@ int dict_install(exword_t *device, char *root, char *id)
 		strcat(path, "\\_CONTENT");
 		exword_setpath(device, path, 1);
 		while ((entry = readdir(dhandle)) != NULL) {
-			filename = _mkpath(id, entry->d_name);
+			filename = mkpath(id, entry->d_name);
 			if (stat(filename, &buf) == 0 && S_ISREG(buf.st_mode)) {
 				printf("Transferring %s...", entry->d_name);
 				if (_upload_file(device, id, entry->d_name))

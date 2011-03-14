@@ -22,18 +22,15 @@
 #include <stdlib.h>
 #include <sys/types.h>
 #include <sys/stat.h>
-#include <fcntl.h>
 #include <string.h>
 #include <locale.h>
 #include <libgen.h>
 #include <readline/readline.h>
 #include <readline/history.h>
-#include "exword.h"
-#include "list.h"
 
-#ifndef O_BINARY
-# define O_BINARY 0
-#endif
+#include "exword.h"
+#include "util.h"
+#include "list.h"
 
 struct state {
 	exword_t *device;
@@ -129,14 +126,22 @@ struct command commands[] = {
 {NULL, NULL, NULL, NULL}
 };
 
-void * xmalloc (size_t n)
+void load_history()
 {
-	void *p = malloc(n);
-	if (!p && n != 0) {
-		fprintf(stderr, "abort: Out of Memory\n");
-		abort();
-	}
-	return p;
+	char * filename;
+	const char *data_dir = get_data_dir();
+	filename = mkpath(data_dir, ".exword_history");
+	read_history(filename);
+	free(filename);
+}
+
+void store_history()
+{
+	char * filename;
+	const char *data_dir = get_data_dir();
+	filename = mkpath(data_dir, ".exword_history");
+	write_history(filename);
+	free(filename);
 }
 
 void queue_arg(struct list_head *head, char * arg)
@@ -183,45 +188,6 @@ void fill_arg_list(struct list_head *head, char * str)
 	while ((token = strtok(NULL, " \t")) != NULL) {
 		queue_arg(head, token);
 	}
-}
-
-int read_file(const char* filename, char **buffer, int *len)
-{
-	int fd;
-	struct stat buf;
-	*buffer = NULL;
-	*len = 0;
-	fd = open(filename, O_RDONLY | O_BINARY);
-	if (fd < 0)
-		return 0x44;
-	fstat(fd, &buf);
-	*buffer = xmalloc(buf.st_size);
-	*len = read(fd, *buffer, buf.st_size);
-	if (*len < 0) {
-		free(*buffer);
-		*buffer = NULL;
-		*len = 0;
-		close(fd);
-		return 0x50;
-	}
-	close(fd);
-	return 0x20;
-}
-
-int write_file(const char* filename, char *buffer, int len)
-{
-	int fd, ret;
-	struct stat buf;
-	fd = open(filename, O_WRONLY | O_CREAT | O_TRUNC | O_BINARY, S_IRUSR | S_IWUSR);
-	if (fd < 0)
-		return 0x43;
-	ret = write(fd, buffer, len);
-	if (ret < 0) {
-		close(fd);
-		return 0x50;
-	}
-	close(fd);
-	return 0x20;
 }
 
 int _setpath(struct state *s, char* device, char *pathname, int mkdir)
@@ -735,13 +701,15 @@ char * create_prompt(char *cwd) {
 	return p;
 }
 
-void interactive(struct state *s) {
+void interactive(struct state *s)
+{
 	char * line = NULL;
 	char * prompt = NULL;
 	printf("Exword dictionary tool.\n"
 	       "Type 'help' for a list of commands.\n");
 	s->running = 1;
 	INIT_LIST_HEAD(&(s->cmd_list));
+	load_history();
 	while (s->running) {
 		free(line);
 		free(prompt);
@@ -756,6 +724,7 @@ void interactive(struct state *s) {
 	}
 	free(line);
 	free(prompt);
+	store_history();
 }
 
 int main(int argc, const char** argv)
