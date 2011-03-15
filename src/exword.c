@@ -353,8 +353,10 @@ exword_t * exword_open2(uint16_t options)
 		goto error;
 
 	ret = libusb_get_device_list(NULL, &dev_list);
-	if (ret < 0)
+	if (ret < 0) {
+		libusb_exit(NULL);
 		goto error;
+	}
 
 	for (i = 0; i < ret; i++) {
 		device = dev_list[i];
@@ -371,23 +373,21 @@ exword_t * exword_open2(uint16_t options)
 			}
 		}
 	}
+	libusb_free_device_list(dev_list, 1);
+	libusb_exit(NULL);
 
 	if (i >= ret)
 		goto error;
 
-	libusb_exit(NULL);
 	self->obex_ctx = obex_init(self->vid, self->pid);
 	if (self->obex_ctx == NULL)
 		goto error;
 	obex_set_connect_info(self->obex_ctx, ver, locale);
 	obex_register_callback(self->obex_ctx, exword_handle_callbacks, self);
-	libusb_free_device_list(dev_list, 1);
 	return self;
 
 error:
 	free(self);
-	libusb_free_device_list(dev_list, 1);
-	libusb_exit(NULL);
 	return NULL;
 }
 

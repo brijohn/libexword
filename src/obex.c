@@ -568,8 +568,10 @@ out_err:
 		buf_free(self->tx_msg);
 	if (self->rx_msg != NULL)
 		buf_free(self->rx_msg);
-	libusb_close(self->usb_dev);
-	libusb_exit(self->usb_ctx);
+	if (self->usb_dev)
+		libusb_close(self->usb_dev);
+	if (self->usb_ctx)
+		libusb_exit(self->usb_ctx);
 	free(self);
 	return NULL;
 }
