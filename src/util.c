@@ -22,10 +22,20 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/stat.h>
 #include <fcntl.h>
 #include <limits.h>
 
-#include "util.h"
+#if defined(__MINGW32__)
+# include <shlwapi.h>
+# include <shlobj.h>
+# define PATH_SEP "\\"
+#elif defined(__APPLE__) && defined(__MACH__)
+# include <Carbon/Carbon.h>
+# define PATH_SEP "/"
+#else
+# define PATH_SEP "/"
+#endif
 
 #ifndef O_BINARY
 # define O_BINARY 0

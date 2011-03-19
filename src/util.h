@@ -22,20 +22,9 @@
 #ifndef _UTIL_H
 #define _UTIL_H
 
-
 #if defined(__MINGW32__)
-# include <shlwapi.h>
-# include <shlobj.h>
-# define PATH_MAX MAX_PATH
-# define PATH_SEP "\\"
 # define mkdir(path, mode) _mkdir(path)
-#elif defined(__APPLE__) && defined(__MACH__)
-# include <Carbon/Carbon.h>
-# define PATH_SEP "/"
-#else
-# define PATH_SEP "/"
 #endif
-
 
 void * xmalloc(size_t n);
 int write_file(const char* filename, char *buffer, int len);
