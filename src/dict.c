@@ -84,7 +84,7 @@ int _read_admini(exword_t *device, char **buffer, int *length)
 	int i, rsp;
 	for (i = 0; admini_list[i] != NULL; i++) {
 		rsp = exword_get_file(device, admini_list[i], buffer, length);
-		if (rsp == 0x20 && length > 0)
+		if (rsp == 0x20 && *length > 0)
 			break;
 		free(*buffer);
 		*buffer = NULL;
