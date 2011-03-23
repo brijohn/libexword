@@ -31,14 +31,13 @@ static int obex_bulk_read(obex_t *self, buf_t *msg)
 	int expected_length;
 	char * buffer;
 	DEBUG(self, 4, "Read from endpoint %d\n", self->read_endpoint_address);
+	if (msg->data_size > 0 && ntohs(*((uint16_t*)(msg->data + 1))) == msg->data_size)
+		return msg->data_size;
 	do {
 		buffer = buf_reserve_end(msg, self->mtu_rx);
 		retval = libusb_bulk_transfer(self->usb_dev, self->read_endpoint_address, buffer, self->mtu_rx, &actual_length, 1245);
 		buf_remove_end(msg, self->mtu_rx - actual_length);
-		if (self->seq_check == -1)
-			expected_length = ntohs(*((uint16_t*)(msg->data + 1)));
-		else
-			expected_length = ntohs(*((uint16_t*)(msg->data + 2))) + 1;
+		expected_length = ntohs(*((uint16_t*)(msg->data + 1)));
 	} while ((expected_length != msg->data_size && retval == 0) ||
 		 (actual_length == 0 && retval == 0));
 	if (retval == 0)
@@ -58,23 +57,26 @@ static int obex_bulk_write(obex_t *self, buf_t *msg)
 
 static int obex_verify_seq(obex_t *self, uint8_t seq) {
 	int retval, actual_length = 0, count = 0;
-	uint8_t check[1] = {0};
-	self->seq_check = -1;
+	char * buffer;
+	buffer = buf_reserve_end(self->rx_msg, self->mtu_rx);
 	do {
-		retval = libusb_bulk_transfer(self->usb_dev, self->read_endpoint_address, check, 1, &actual_length, 1245);
-		count++;
-		if (retval == LIBUSB_ERROR_OVERFLOW)
+		retval = libusb_bulk_transfer(self->usb_dev, self->read_endpoint_address, buffer, self->mtu_rx, &actual_length, 1245);
+		if (retval < 0)
 			break;
-	} while (count < 100 && actual_length != 1);
-	if (retval < 0 || check[0] != seq) {
-		if (retval == LIBUSB_ERROR_OVERFLOW || actual_length == 0) {
-			self->seq_check = seq;
-		} else {
-			DEBUG(self, 4, "Sequence mismatch %d != %d\n",
-			      seq, check[0]);
-			return 0;
-		}
+		count++;
+	} while (count < 100 && actual_length == 0);
+	buf_remove_end(self->rx_msg, self->mtu_rx - actual_length);
+	if (retval < 0 || actual_length == 0) {
+		DEBUG(self, 4, "Error reading seq number (%d)\n",
+		      retval);
+		return 0;
 	}
+	if ((uint8_t)buffer[0] != seq) {
+		DEBUG(self, 4, "Sequence mismatch %u != %u\n",
+		      (uint8_t)buffer[0], seq);
+		return 0;
+	}
+	buf_remove_begin(self->rx_msg, 1);
 	return 1;
 }
 
@@ -361,15 +363,7 @@ int obex_object_receive(obex_t *self, obex_object_t *object)
 	if (ret < 0) {
 		return ret;
 	}
-	if (self->seq_check >= 0) {
-		DEBUG(self, 4, "Delayed Sequence checking\n");
-		if (msg->data[0] != self->seq_check) {
-			DEBUG(self, 4, "Sequence mismatch %d != %d\n",
-			      self->seq_check, msg->data[0]);
-			return -1;
-		}
-		buf_remove_begin(msg, 1);
-	}
+
 	hdr = (struct obex_rsp_hdr *) msg->data;
 	/* New data has been inserted at the end of message */
 	DEBUG(self, 4, "Got %d bytes msg len=%d\n", ret, msg->data_size);
