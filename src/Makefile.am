@@ -3,6 +3,7 @@ lib_LTLIBRARIES = libexword.la
 bin_PROGRAMS = exword
 libexword_la_SOURCES =	exword.c \
 			exword.h \
+			crypt.c \
 			obex.c   \
 			obex.h \
 			databuffer.c \

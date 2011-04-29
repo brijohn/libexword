@@ -831,6 +831,8 @@ int exword_cryptkey(exword_t *self, exword_cryptkey_t *key)
 			}
 		}
 	}
+	memcpy(key->key + 12, key->blk2 + 8, 4);
+	get_xor_key(key->key, 16, key->xorkey);
 	obex_object_delete(self->obex_ctx, obj);
 	return rsp;
 }

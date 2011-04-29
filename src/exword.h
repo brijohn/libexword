@@ -189,7 +189,9 @@ typedef struct {
 	/** Input block 2 */
 	unsigned char blk2[12];
 	/** Generated CryptKey */
-	unsigned char key[12];
+	unsigned char key[16];
+	/** Generated XOR Encryption key */
+	unsigned char xorkey[16];
 } exword_cryptkey_t;
 #pragma pack()
 
@@ -210,6 +212,10 @@ extern "C" {
 char * convert_to_locale(char *fmt, char **dst, int *dstsz, const char *src, int srcsz);
 char * utf16_to_locale(char **dst, int *dstsz, const char *src, int srcsz);
 char * locale_to_utf16(char **dst, int *dstsz, const char *src, int srcsz);
+
+void get_xor_key(char *key, long size, char *xorkey);
+void crypt_data(char *data, int size, char *key);
+
 char * exword_response_to_string(int rsp);
 void exword_set_debug(exword_t *self, int level);
 void exword_register_callbacks(exword_t *self, file_cb get, file_cb put, void *userdata);

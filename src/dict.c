@@ -36,13 +36,8 @@ typedef struct {
 	char name[132];
 } admini_t;
 
-static char plaintext[16] =
-	"\x3c\x68\x74\x6d\x6c\x3e\x0d\x0a\x3c\x68\x65\x61\x64\x3e\x0d\x0a";
-
 static char key1[16] =
 	"\x42\x72\xb7\xb5\x9e\x30\x83\x45\xc3\xb5\x41\x53\x71\xc4\x95\x00";
-static char key2[16] =
-	"\x5d\x5d\x5d\x5d\x5c\x42\x5c\x42\x5b\x28\x5b\x28\x5a\x0f\x5a\x0f";
 
 char *admini_list[] = {
 	"admini.inf",
@@ -54,30 +49,6 @@ char *admini_list[] = {
 	"adminiru.inf",
 	NULL
 };
-
-void _crypt(char *data, int size, char *key)
-{
-	int blks, leftover;
-	int i;
-	char *ptr;
-	blks = size >> 4;
-	leftover = size % 16;
-	ptr = data;
-	for (i = 0; i < blks; i++) {
-		*((long *)ptr) = *((long *)ptr) ^ ((long *)key)[0];
-		ptr += 4;
-		*((long *)ptr) = *((long *)ptr) ^ ((long *)key)[1];
-		ptr += 4;
-		*((long *)ptr) = *((long *)ptr) ^ ((long *)key)[2];
-		ptr += 4;
-		*((long *)ptr) = *((long *)ptr) ^ ((long *)key)[3];
-		ptr += 4;
-	}
-	for (i = 0; i < leftover; i++) {
-		*ptr = *ptr ^ key[i];
-		ptr++;
-	}
-}
 
 int _read_admini(exword_t *device, char **buffer, int *length)
 {
@@ -114,29 +85,7 @@ int _find(exword_t *device, char *root, char *id, admini_t *ini)
 	return 1;
 }
 
-int _crack_key(exword_t *device, char *root, char *id, char *key)
-{
-	char path[50];
-	int rsp, len, i;
-	char *buffer;
-
-	strcpy(path, root);
-	strncat(path, id, 5);
-	strcat(path, "\\_CONTENT");
-	rsp = exword_setpath(device, path, 0);
-	if (rsp != 0x20)
-		return 0;
-	rsp = exword_get_file(device, "diction.htm", &buffer, &len);
-	if (rsp != 0x20)
-		return 0;
-	for (i = 0; i < 16; i++) {
-		key[i] = plaintext[i] ^ buffer[i];
-	}
-	free(buffer);
-	return 1;
-}
-
-int _upload_file(exword_t *device, char *id, char* name)
+int _upload_file(exword_t *device, char *id, char* name, char *key)
 {
 	int length, rsp;
 	char *ext, *buffer;
@@ -154,7 +103,7 @@ int _upload_file(exword_t *device, char *id, char* name)
 			    strcmp(ext, ".TXT") == 0 ||
 			    strcmp(ext, ".BMP") == 0 ||
 			    strcmp(ext, ".HTM") == 0)) {
-		_crypt(buffer, length, key2);
+		crypt_data(buffer, length, key);
 	}
 	rsp = exword_send_file(device, name, buffer, length);
 	free(filename);
@@ -180,7 +129,7 @@ int _download_file(exword_t *device, char *id, char* name, char *key)
 			    strcmp(ext, ".TXT") == 0 ||
 			    strcmp(ext, ".BMP") == 0 ||
 			    strcmp(ext, ".HTM") == 0)) {
-		_crypt(buffer, length, key);
+		crypt_data(buffer, length, key);
 	}
 	rsp = write_file(filename, buffer, length);
 	free(filename);
@@ -321,10 +270,6 @@ int dict_decrypt(exword_t *device, char *root, char *id)
 		printf("No dictionary with id %s installed.\n", id);
 		return 0;
 	}
-	if (!_crack_key(device, root, id, key)) {
-		printf("Dictionary with id %s is invalid.\n", id);
-		return 0;
-	}
 	if (exword_setpath(device, path, 0) != 0x20) {
 		printf("Dictionary %s does not exist\n", id);
 		return 0;
@@ -340,6 +285,7 @@ int dict_decrypt(exword_t *device, char *root, char *id)
 		free(dir);
 		return 0;
 	}
+	get_xor_key(info.key, 16, key);
 	exword_list(device, &entries, &count);
 	for (i = 0; i < count; i++) {
 		if (entries[i].flags == 0) {
@@ -523,7 +469,7 @@ int dict_install(exword_t *device, char *root, char *id)
 			filename = mkpath(dir, entry->d_name);
 			if (stat(filename, &buf) == 0 && S_ISREG(buf.st_mode)) {
 				printf("Transferring %s...", entry->d_name);
-				if (_upload_file(device, dir, entry->d_name))
+				if (_upload_file(device, dir, entry->d_name, ck.xorkey))
 					printf("Done\n");
 				else
 					printf("Failed\n");
