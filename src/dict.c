@@ -308,15 +308,23 @@ int dict_decrypt(exword_t *device, char *root, char *id)
 	int i, rsp;
 	char *ext;
 	char key[16];
+	char path[30];
 	admini_t info;
 	uint16_t count;
 	exword_dirent_t *entries;
+	strcpy(path, root);
+	strcat(path, id);
+	strcat(path, "\\_CONTENT");
 	if (!_find(device, root, id, &info)) {
 		printf("No dictionary with id %s installed.\n", id);
 		return 0;
 	}
 	if (!_crack_key(device, root, id, key)) {
 		printf("Dictionary with id %s is invalid.\n", id);
+		return 0;
+	}
+	if (exword_setpath(device, path, 0) != 0x20) {
+		printf("Dictionary %s does not exist\n", id);
 		return 0;
 	}
 	if (mkdir(id, 0770) < 0) {
