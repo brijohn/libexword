@@ -108,12 +108,17 @@ const char * get_data_dir()
 	return data_dir;
 }
 
-char * mkpath(const char *id, const char *filename)
+char * mkpath(const char *base, const char *filename)
 {
-	char *path = xmalloc(strlen(id) + strlen(filename) + 2);
-	strcpy(path, id);
-	strcat(path, PATH_SEP);
-	strcat(path, filename);
+	char *path;
+	if (base == NULL) {
+		path = strdup(filename);
+	} else {
+		path = xmalloc(strlen(base) + strlen(filename) + 2);
+		strcpy(path, base);
+		strcat(path, PATH_SEP);
+		strcat(path, filename);
+	}
 	return path;
 }
 

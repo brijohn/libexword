@@ -30,6 +30,6 @@ void * xmalloc(size_t n);
 int write_file(const char* filename, char *buffer, int len);
 int read_file(const char* filename, char **buffer, int *len);
 const char * get_data_dir();
-char * mkpath(const char *id, const char *filename);
+char * mkpath(const char *base, const char *filename);
 
 #endif

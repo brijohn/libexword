@@ -309,6 +309,8 @@ int dict_decrypt(exword_t *device, char *root, char *id)
 	char *ext;
 	char key[16];
 	char path[30];
+	char *dir;
+	struct stat buf;
 	admini_t info;
 	uint16_t count;
 	exword_dirent_t *entries;
@@ -327,8 +329,15 @@ int dict_decrypt(exword_t *device, char *root, char *id)
 		printf("Dictionary %s does not exist\n", id);
 		return 0;
 	}
-	if (mkdir(id, 0770) < 0) {
+	dir = mkpath(get_data_dir(), id);
+	if (stat(dir, &buf) == 0 && S_ISDIR(buf.st_mode)) {
+		printf("Local version of dictionary already exists\n");
+		free(dir);
+		return 0;
+	}
+	if (mkdir(dir, 0770) < 0) {
 		printf("Failed to create local directory %s\n", id);
+		free(dir);
 		return 0;
 	}
 	exword_list(device, &entries, &count);
@@ -339,12 +348,13 @@ int dict_decrypt(exword_t *device, char *root, char *id)
 					    strcmp(ext, ".CJS") == 0))
 				continue;
 			printf("Decrypting %s...", entries[i].name);
-			if (_download_file(device, id, entries[i].name, key))
+			if (_download_file(device, dir, entries[i].name, key))
 				printf("Done\n");
 			else
 				printf("Failed\n");
 		}
 	}
+	free(dir);
 	exword_free_list(entries);
 	return 1;
 }
@@ -467,6 +477,7 @@ int dict_install(exword_t *device, char *root, char *id)
 	char *name;
 	char path[30];
 	char *filename;
+	char *dir;
 	struct stat buf;
 	int size;
 	memset(&ck, 0, sizeof(exword_cryptkey_t));
@@ -478,21 +489,25 @@ int dict_install(exword_t *device, char *root, char *id)
 		printf("Dictionary with id %s already installed.\n", id);
 		return 0;
 	}
-	dhandle = opendir(id);
+	dir = mkpath(get_data_dir(), id);
+	dhandle = opendir(dir);
 	if (dhandle == NULL) {
 		printf("Can find dictionary directory %s.\n", id);
+		free(dir);
 		return 0;
 	}
-	size = _get_size(id);
+	size = _get_size(dir);
 	rsp = exword_get_capacity(device, &cap);
 	if (rsp != 0x20 || size >= cap.free || size < 0) {
 		printf("Insufficent space on device.\n");
+		free(dir);
 		closedir(dhandle);
 		return 0;
 	}
-	name = _get_name(id);
+	name = _get_name(dir);
 	if (name == NULL) {
 		printf("%s: missing diction.htm\n", id);
+		free(dir);
 		return 0;
 	}
 	rsp = exword_unlock(device);
@@ -505,10 +520,10 @@ int dict_install(exword_t *device, char *root, char *id)
 		strcat(path, "\\_CONTENT");
 		exword_setpath(device, path, 1);
 		while ((entry = readdir(dhandle)) != NULL) {
-			filename = mkpath(id, entry->d_name);
+			filename = mkpath(dir, entry->d_name);
 			if (stat(filename, &buf) == 0 && S_ISREG(buf.st_mode)) {
 				printf("Transferring %s...", entry->d_name);
-				if (_upload_file(device, id, entry->d_name))
+				if (_upload_file(device, dir, entry->d_name))
 					printf("Done\n");
 				else
 					printf("Failed\n");
@@ -521,6 +536,7 @@ int dict_install(exword_t *device, char *root, char *id)
 		strcat(path, "\\_USER");
 		exword_setpath(device, path, 1);
 	}
+	free(dir);
 	rsp |= exword_lock(device);
 	return (rsp == 0x20);
 }
