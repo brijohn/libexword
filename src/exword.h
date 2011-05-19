@@ -203,6 +203,10 @@ typedef struct {
  */
 typedef void (*file_cb)(char *filename, uint32_t transferred, uint32_t length, void *user_data);
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 char * convert_to_locale(char *fmt, char **dst, int *dstsz, const char *src, int srcsz);
 char * utf16_to_locale(char **dst, int *dstsz, const char *src, int srcsz);
 char * locale_to_utf16(char **dst, int *dstsz, const char *src, int srcsz);
@@ -230,4 +234,9 @@ int exword_lock(exword_t *self);
 int exword_authchallenge(exword_t *self, exword_authchallenge_t challenge);
 int exword_authinfo(exword_t *self, exword_authinfo_t *info);
 int exword_disconnect(exword_t *self);
+
+#ifdef __cplusplus
+}
+#endif
+
 #endif
