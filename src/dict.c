@@ -90,7 +90,7 @@ int _upload_file(exword_t *device, char *id, char* name, char *key)
 	int length, rsp;
 	char *ext, *buffer;
 	char *filename;
-	filename = mkpath(id, name);
+	filename = mkpath(PATH_SEP, id, name, NULL);
 	rsp = read_file(filename, &buffer, &length);
 	if (rsp != 0x20) {
 		free(filename);
@@ -116,7 +116,7 @@ int _download_file(exword_t *device, char *id, char* name, char *key)
 	char *filename;
 	int length, rsp;
 	char *buffer, *ext;
-	filename = mkpath(id, name);
+	filename = mkpath(PATH_SEP, id, name, NULL);
 	ext = strrchr(filename, '.');
 	rsp = exword_get_file(device, name, &buffer, &length);
 	if (rsp != 0x20) {
@@ -149,7 +149,7 @@ int _get_size(char *id)
 	if (dhandle == NULL)
 		return -1;
 	while ((entry = readdir(dhandle)) != NULL) {
-		filename = mkpath(id, entry->d_name);
+		filename = mkpath(PATH_SEP, id, entry->d_name, NULL);
 		fd = open(filename, O_RDONLY);
 		if (fd >= 0) {
 			if (fstat(fd, &buf) == 0 && S_ISREG(buf.st_mode))
@@ -169,7 +169,7 @@ char * _get_name(char *id)
 	char *filename;
 	char *buffer, *start, *end;
 	struct stat buf;
-	filename = mkpath(id, "diction.htm");
+	filename = mkpath(PATH_SEP, id, "diction.htm", NULL);
 	if (read_file(filename, &buffer, &length) != 0x20) {
 		free(filename);
 		return NULL;
@@ -200,7 +200,7 @@ int _save_user_key(char *name, char *key)
 	if (dir == NULL)
 		return 0;
 	mkdir(dir, 0770);
-	file = mkpath(dir, "users.dat");
+	file = mkpath(PATH_SEP, dir, "users.dat", NULL);
 	ret = read_file(file, &buffer, &length);
 	if (ret == 0x50) {
 		free(file);
@@ -235,7 +235,7 @@ int _load_user_key(char *name, char *key)
 	if (dir == NULL)
 		return 0;
 	mkdir(dir, 0770);
-	file = mkpath(dir, "users.dat");
+	file = mkpath(PATH_SEP, dir, "users.dat", NULL);
 	ret = read_file(file, &buffer, &length);
 	free(file);
 	if (ret != 0x20)
@@ -257,24 +257,24 @@ int dict_decrypt(exword_t *device, char *root, char *id)
 	int i, rsp;
 	char *ext;
 	char key[16];
-	char path[30];
+	char *path;
 	char *dir;
 	struct stat buf;
 	admini_t info;
 	uint16_t count;
 	exword_dirent_t *entries;
-	strcpy(path, root);
-	strcat(path, id);
-	strcat(path, "\\_CONTENT");
+	path = mkpath("\\", root, id, "_CONTENT", NULL);
 	if (!_find(device, root, id, &info)) {
 		printf("No dictionary with id %s installed.\n", id);
 		return 0;
 	}
-	if (exword_setpath(device, path, 0) != 0x20) {
+	rsp = exword_setpath(device, path, 0);
+	free(path);
+	if (rsp != 0x20) {
 		printf("Dictionary %s does not exist\n", id);
 		return 0;
 	}
-	dir = mkpath(get_data_dir(), id);
+	dir = mkpath(PATH_SEP, get_data_dir(), id, NULL);
 	if (stat(dir, &buf) == 0 && S_ISDIR(buf.st_mode)) {
 		printf("Local version of dictionary already exists\n");
 		free(dir);
@@ -421,7 +421,7 @@ int dict_install(exword_t *device, char *root, char *id)
 	exword_capacity_t cap;
 	int rsp;
 	char *name;
-	char path[30];
+	char *path;
 	char *filename;
 	char *dir;
 	struct stat buf;
@@ -435,7 +435,7 @@ int dict_install(exword_t *device, char *root, char *id)
 		printf("Dictionary with id %s already installed.\n", id);
 		return 0;
 	}
-	dir = mkpath(get_data_dir(), id);
+	dir = mkpath(PATH_SEP, get_data_dir(), id, NULL);
 	dhandle = opendir(dir);
 	if (dhandle == NULL) {
 		printf("Can find dictionary directory %s.\n", id);
@@ -461,12 +461,11 @@ int dict_install(exword_t *device, char *root, char *id)
 	rsp |= exword_cryptkey(device, &ck);
 	free(name);
 	if (rsp == 0x20) {
-		strcpy(path, root);
-		strcat(path, id);
-		strcat(path, "\\_CONTENT");
+		path = mkpath("\\", root, id, "_CONTENT", NULL);
 		exword_setpath(device, path, 1);
+		free(path);
 		while ((entry = readdir(dhandle)) != NULL) {
-			filename = mkpath(dir, entry->d_name);
+			filename = mkpath(PATH_SEP, dir, entry->d_name, NULL);
 			if (stat(filename, &buf) == 0 && S_ISREG(buf.st_mode)) {
 				printf("Transferring %s...", entry->d_name);
 				if (_upload_file(device, dir, entry->d_name, ck.xorkey))
@@ -477,10 +476,9 @@ int dict_install(exword_t *device, char *root, char *id)
 			free(filename);
 		}
 		closedir(dhandle);
-		strcpy(path, root);
-		strcat(path, id);
-		strcat(path, "\\_USER");
+		path = mkpath("\\", root, id, "_USER", NULL);
 		exword_setpath(device, path, 1);
+		free(path);
 	}
 	free(dir);
 	rsp |= exword_lock(device);

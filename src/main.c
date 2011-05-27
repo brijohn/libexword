@@ -129,7 +129,7 @@ void load_history()
 {
 	char * filename;
 	const char *data_dir = get_data_dir();
-	filename = mkpath(data_dir, ".exword_history");
+	filename = mkpath(PATH_SEP, data_dir, ".exword_history", NULL);
 	read_history(filename);
 	free(filename);
 }
@@ -138,7 +138,7 @@ void store_history()
 {
 	char * filename;
 	const char *data_dir = get_data_dir();
-	filename = mkpath(data_dir, ".exword_history");
+	filename = mkpath(PATH_SEP, data_dir, ".exword_history", NULL);
 	write_history(filename);
 	free(filename);
 }
@@ -193,10 +193,7 @@ int _setpath(struct state *s, char* device, char *pathname, int mkdir)
 {
 	char *path, *p;
 	int rsp, i = 0, j;
-	path = xmalloc(strlen(device) + strlen(pathname) + 2);
-	strcpy(path, device);
-	strcat(path, "\\");
-	strcat(path, pathname);
+	path = mkpath("\\", device, pathname, NULL);
 	p = path;
 	while(p[0] != '\0') {
 		while((p[0] == '/' || p[0] == '\\') &&
@@ -511,9 +508,9 @@ void dict(struct state *s)
 		return;
 	}
 	if (!memcmp(s->cwd, "\\_SD_00", 7))
-		strcpy(root, "\\_SD_00\\");
+		strcpy(root, "\\_SD_00");
 	else
-		strcpy(root, "\\_INTERNAL_00\\");
+		strcpy(root, "\\_INTERNAL_00");
 	if (peek_arg(&(s->cmd_list)) == NULL) {
 		printf("No sub-function specified.\n");
 	} else {

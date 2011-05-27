@@ -25,16 +25,13 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <limits.h>
+#include <stdarg.h>
 
 #if defined(__MINGW32__)
 # include <shlwapi.h>
 # include <shlobj.h>
-# define PATH_SEP "\\"
 #elif defined(__APPLE__) && defined(__MACH__)
 # include <Carbon/Carbon.h>
-# define PATH_SEP "/"
-#else
-# define PATH_SEP "/"
 #endif
 
 #ifndef O_BINARY
@@ -118,17 +115,27 @@ const char * get_data_dir()
 	return data_dir;
 }
 
-char * mkpath(const char *base, const char *filename)
+
+char * mkpath(const char* separator, const char *base, ...)
 {
-	char *path;
-	if (base == NULL) {
-		path = strdup(filename);
-	} else {
-		path = xmalloc(strlen(base) + strlen(filename) + 2);
-		strcpy(path, base);
-		strcat(path, PATH_SEP);
-		strcat(path, filename);
+	char *path, *part;
+	unsigned int current_size = strlen(base) + 1;
+	unsigned int new_size;
+	path = xmalloc(strlen(base) + 1);
+	strcpy(path, base);
+	va_list list;
+	va_start(list, base);
+	part = va_arg(list, char*);
+	while (part != NULL)  {
+		new_size = strlen(part) + strlen(path) + 2;
+		if (new_size > current_size) {
+			path = xrealloc(path, new_size);
+		}
+		strcat(path, separator);
+		strcat(path, part);
+		part = va_arg(list, char*);
 	}
+	va_end(list);
 	return path;
 }
 
