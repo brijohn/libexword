@@ -108,12 +108,12 @@ struct command commands[] = {
 	"operate on. The reset sub-function WILL delete all installed\n"
 	"dictionaries.\n\n"
 	"Sub functions:\n"
-	"reset <user>\t  - resets authentication info\n"
-	"auth <user> <key> - authenticate to dictionary\n"
-	"list\t\t  - list installed add-on dictionaries\n"
-	"decrypt <id>\t  - decrypts specified add-on dictionary\n"
-	"remove  <id>\t  - removes specified add-on dictionary\n"
-	"install <id>\t  - installs specified add-on dictionary\n"},
+	"reset <user>\t    - resets authentication info\n"
+	"auth <user> <key>   - authenticate to dictionary\n"
+	"list [local|remote] - list installed add-on dictionaries\n"
+	"decrypt <id>\t    - decrypts specified add-on dictionary\n"
+	"remove  <id>\t    - removes specified add-on dictionary\n"
+	"install <id>\t    - installs specified add-on dictionary\n"},
 {"set", set, "set <option> [value]\t- sets program options\n",
 	"Sets <option> to [value], if no value is specified will display current value.\n\n"
 	"Available options:\n"
@@ -488,7 +488,8 @@ void list(struct state *s)
 	printf("%s\n", exword_response_to_string(rsp));
 }
 
-int dict_list(exword_t *device, char *root);
+int dict_list_remote(exword_t *device, char *root);
+int dict_list_local();
 int dict_remove(exword_t *device, char *root, char *id);
 int dict_decrypt(exword_t *device, char *root, char *id);
 int dict_install(exword_t *device, char *root, char *id);
@@ -518,7 +519,13 @@ void dict(struct state *s)
 		strcpy(subfunc, peek_arg(&(s->cmd_list)));
 		dequeue_arg(&(s->cmd_list));
 		if (strcmp(subfunc, "list") == 0) {
-			dict_list(s->device, root);
+			id = peek_arg(&(s->cmd_list));
+			if (id == NULL || strcmp(id, "remote") == 0)
+				dict_list_remote(s->device, root);
+			else if (strcmp(id, "local") == 0)
+				dict_list_local();
+			else
+				printf("Unknown parameter passed to list.\n");
 		} else if (strcmp(subfunc, "reset") == 0) {
 			if (peek_arg(&(s->cmd_list)) == NULL) {
 				printf("No username specified.\n");
@@ -572,6 +579,7 @@ void dict(struct state *s)
 						}
 					}
 				}
+				free(user);
 			}
 		} else if (strcmp(subfunc, "decrypt") == 0 ||
 			   strcmp(subfunc, "remove")  == 0 ||
@@ -675,8 +683,8 @@ void set(struct state *s)
 			    strcmp(arg, "true") == 0) {
 				s->mkdir = 1;
 			} else if (strcmp(arg, "off") == 0 ||
-			    strcmp(arg, "no") == 0 ||
-			    strcmp(arg, "false") == 0) {
+				   strcmp(arg, "no") == 0 ||
+				   strcmp(arg, "false") == 0) {
 				s->mkdir = 0;
 			} else {
 				printf("Invalid value\n");

@@ -366,7 +366,7 @@ int dict_reset(exword_t *device, char *user)
 	return dict_auth(device, user, info.challenge);
 }
 
-int dict_list(exword_t *device, char* root)
+int dict_list_remote(exword_t *device, char* root)
 {
 	int rsp, length, i, len;
 	char * locale;
@@ -381,6 +381,34 @@ int dict_list(exword_t *device, char* root)
 		}
 	}
 	free(info);
+	return 1;
+}
+
+int dict_list_local()
+{
+	DIR *dir;
+	char *name, *path;
+	char *locale;
+	int len, i = 0;
+	struct dirent *entry;
+	dir = opendir(get_data_dir());
+	if (!dir)
+		return 0;
+	while ((entry = readdir(dir)) != NULL) {
+		if (entry->d_name[0] == '.')
+			continue;
+		path = mkpath(PATH_SEP, get_data_dir(), entry->d_name, NULL);
+		name = _get_name(path);
+		if (name) {
+			locale =  convert_to_locale("SHIFT_JIS", &locale, &len, name, strlen(name) + 1);
+			printf("%d. %s (%s)\n", i, (locale == NULL ? name : locale), entry->d_name);
+			free(locale);
+			free(name);
+			++i;
+		}
+		free(path);
+	}
+	closedir(dir);
 	return 1;
 }
 

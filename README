@@ -80,8 +80,9 @@ dict <sub-function>
 			except for list and reset. If key is not specified it will try to find the
 			username in the users.dat file.
 
-		list
-			This command will list currently installed dictionaries.
+		list [local|remote]
+			This command will list all local dictionaries if local is specified or, if
+			remote is specified it will list remote dictionaries. The default is remote.
 
 		decrypt <id>
 			This downloads and decrypts the dictionary with the specified id.
