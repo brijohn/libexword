@@ -215,7 +215,7 @@ int _save_user_key(char *name, char *key)
 		i += 21 + *(buffer + i);
 	}
 	str_len = strlen(name) + 1;
-	buffer = realloc(buffer, length + str_len + 21);
+	buffer = xrealloc(buffer, length + str_len + 21);
 	buffer[length] = str_len;
 	memcpy(buffer + length + 1, name, str_len);
 	memcpy(buffer + length + 1 + str_len, key, 20);

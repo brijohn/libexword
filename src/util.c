@@ -51,6 +51,16 @@ void * xmalloc (size_t n)
 	return p;
 }
 
+void * xrealloc (void *ptr, size_t n)
+{
+	void *p = realloc(ptr, n);
+	if (!p && n != 0) {
+		fprintf(stderr, "abort: Out of Memory\n");
+		abort();
+	}
+	return p;
+}
+
 const char * get_data_dir()
 {
 	static char data_dir[PATH_MAX];
