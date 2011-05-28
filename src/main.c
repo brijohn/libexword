@@ -38,6 +38,7 @@ struct state {
 	int debug;
 	int mkdir;
 	int authenticated;
+	int sd_inserted;
 	char *cwd;
 	struct list_head cmd_list;
 };
@@ -256,6 +257,9 @@ void connect(struct state *s)
 	char *mode;
 	char *locale;
 	int error = 0;
+	int i;
+	uint16_t count;
+	exword_dirent_t *entries;
 	if (s->connected)
 		return;
 
@@ -308,6 +312,17 @@ void connect(struct state *s)
 				exword_close(s->device);
 				s->device = NULL;
 			} else {
+				if (exword_setpath(s->device, ROOT, 0) == 0x20) {
+					if (exword_list(s->device, &entries, &count) == 0x20) {
+						for (i = 0; i < count; i++) {
+							if (strcmp(entries[i].name, "_SD_00") == 0) {
+								s->sd_inserted = 1;
+								break;
+							}
+						}
+						exword_free_list(entries);
+					}
+				}
 				_setpath(s, INTERNAL_MEM, "/", 2);
 				s->connected = 1;
 				s->mode = (options & 0xff00);
@@ -604,10 +619,14 @@ void setpath(struct state *s)
 	} else {
 		rsp = sscanf(path, "sd://%255s", path2);
 		if (rsp > 0) {
-			rsp = _setpath(s, SD_CARD, path2, s->mkdir);
-			if (rsp != 0x20) {
-				printf("%s\n", exword_response_to_string(rsp));
-				exword_setpath(s->device, s->cwd, 0);
+			if (s->sd_inserted) {
+				rsp = _setpath(s, SD_CARD, path2, s->mkdir);
+				if (rsp != 0x20) {
+					printf("%s\n", exword_response_to_string(rsp));
+					exword_setpath(s->device, s->cwd, 0);
+				}
+			} else {
+				printf("SD card not inserted.\n");
 			}
 		} else {
 			rsp = sscanf(path, "mem://%255s", path2);
