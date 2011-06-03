@@ -98,6 +98,32 @@ typedef struct exword_t exword_t;
  */
 #define CAP_EXT        (1 << 15)
 
+
+/** @ingroup misc
+ * Success (no error)
+ */
+#define EXWORD_SUCCESS		0
+/** @ingroup misc
+ * Access denied
+ */
+#define EXWORD_ERROR_FORBIDDEN	1
+/** @ingroup misc
+ * File not found
+ */
+#define EXWORD_ERROR_NOT_FOUND	2
+/** @ingroup misc
+ * Internal Error
+ */
+#define EXWORD_ERROR_INTERNAL	3
+/** @ingroup misc
+ * Insufficient memory
+ */
+#define EXWORD_ERROR_NO_MEM	4
+/** @ingroup misc
+ * Other error
+ */
+#define EXWORD_ERROR_OTHER	5
+
 /**
  * Structure representing a directory entry.
  */
@@ -216,7 +242,7 @@ char * locale_to_utf16(char **dst, int *dstsz, const char *src, int srcsz);
 void get_xor_key(char *key, long size, char *xorkey);
 void crypt_data(char *data, int size, char *key);
 
-char * exword_response_to_string(int rsp);
+char * exword_error_to_string(int code);
 void exword_set_debug(exword_t *self, int level);
 void exword_register_callbacks(exword_t *self, file_cb get, file_cb put, void *userdata);
 void exword_free_list(exword_dirent_t *entries);

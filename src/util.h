@@ -29,6 +29,8 @@
 # define PATH_SEP "/"
 #endif
 
+#include <errno.h>
+
 void * xmalloc(size_t n);
 void * xrealloc (void *ptr, size_t n);
 int write_file(const char* filename, char *buffer, int len);

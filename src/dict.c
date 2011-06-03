@@ -55,7 +55,7 @@ int _read_admini(exword_t *device, char **buffer, int *length)
 	int i, rsp;
 	for (i = 0; admini_list[i] != NULL; i++) {
 		rsp = exword_get_file(device, admini_list[i], buffer, length);
-		if (rsp == 0x20 && *length > 0)
+		if (rsp == EXWORD_SUCCESS && *length > 0)
 			break;
 		free(*buffer);
 		*buffer = NULL;
@@ -92,7 +92,7 @@ int _upload_file(exword_t *device, char *id, char* name, char *key)
 	char *filename;
 	filename = mkpath(PATH_SEP, id, name, NULL);
 	rsp = read_file(filename, &buffer, &length);
-	if (rsp != 0x20) {
+	if (rsp != 0) {
 		free(filename);
 		return 0;
 	}
@@ -108,7 +108,7 @@ int _upload_file(exword_t *device, char *id, char* name, char *key)
 	rsp = exword_send_file(device, name, buffer, length);
 	free(filename);
 	free(buffer);
-	return (rsp == 0x20);
+	return (rsp == EXWORD_SUCCESS);
 }
 
 int _download_file(exword_t *device, char *id, char* name, char *key)
@@ -119,7 +119,7 @@ int _download_file(exword_t *device, char *id, char* name, char *key)
 	filename = mkpath(PATH_SEP, id, name, NULL);
 	ext = strrchr(filename, '.');
 	rsp = exword_get_file(device, name, &buffer, &length);
-	if (rsp != 0x20) {
+	if (rsp != EXWORD_SUCCESS) {
 		free(filename);
 		return 0;
 	}
@@ -134,7 +134,7 @@ int _download_file(exword_t *device, char *id, char* name, char *key)
 	rsp = write_file(filename, buffer, length);
 	free(filename);
 	free(buffer);
-	return (rsp == 0x20);
+	return (rsp == EXWORD_SUCCESS);
 }
 
 int _get_size(char *id)
@@ -170,7 +170,7 @@ char * _get_name(char *id)
 	char *buffer, *start, *end;
 	struct stat buf;
 	filename = mkpath(PATH_SEP, id, "diction.htm", NULL);
-	if (read_file(filename, &buffer, &length) != 0x20) {
+	if (read_file(filename, &buffer, &length) != 0) {
 		free(filename);
 		return NULL;
 	}
@@ -202,7 +202,7 @@ int _save_user_key(char *name, char *key)
 	mkdir(dir, 0770);
 	file = mkpath(PATH_SEP, dir, "users.dat", NULL);
 	ret = read_file(file, &buffer, &length);
-	if (ret == 0x50) {
+	if (ret == -1 && errno != ENOENT) {
 		free(file);
 		return 0;
 	}
@@ -222,7 +222,7 @@ int _save_user_key(char *name, char *key)
 	ret = write_file(file, buffer, length + str_len + 21);
 	free(file);
 	free(buffer);
-	return (ret == 0x20 ? 1 : 0);
+	return (ret == 0);
 }
 
 int _load_user_key(char *name, char *key)
@@ -238,7 +238,7 @@ int _load_user_key(char *name, char *key)
 	file = mkpath(PATH_SEP, dir, "users.dat", NULL);
 	ret = read_file(file, &buffer, &length);
 	free(file);
-	if (ret != 0x20)
+	if (ret != 0)
 		return 0;
 	while (i < length) {
 		if (strcmp(name, buffer + i + 1) == 0) {
@@ -270,7 +270,7 @@ int dict_decrypt(exword_t *device, char *root, char *id)
 	}
 	rsp = exword_setpath(device, path, 0);
 	free(path);
-	if (rsp != 0x20) {
+	if (rsp != EXWORD_SUCCESS) {
 		printf("Dictionary %s does not exist\n", id);
 		return 0;
 	}
@@ -325,7 +325,7 @@ int dict_auth(exword_t *device, char *user, char *auth)
 	strncpy(ai.blk2, user, 24);
 	exword_setpath(device, "\\_INTERNAL_00", 0);
 	rsp = exword_authchallenge(device, c);
-	if (rsp != 0x20)
+	if (rsp != EXWORD_SUCCESS)
 		return 0;
 	exword_setpath(device, "", 0);
 	exword_list(device, &entries, &count);
@@ -333,7 +333,7 @@ int dict_auth(exword_t *device, char *user, char *auth)
 		if (strcmp(entries[i].name, "_SD_00") == 0) {
 			exword_setpath(device, "\\_SD_00", 0);
 			rsp = exword_authchallenge(device, c);
-			if (rsp != 0x20) {
+			if (rsp != EXWORD_SUCCESS) {
 				exword_authinfo(device, &ai);
 			}
 		}
@@ -430,14 +430,14 @@ int dict_remove(exword_t *device, char *root, char *id)
 	rsp = exword_unlock(device);
 	rsp |= exword_cname(device, info.name, id);
 	rsp |= exword_cryptkey(device, &ck);
-	if (rsp == 0x20)
+	if (rsp == EXWORD_SUCCESS)
 		rsp |= exword_remove_file(device, id, 0);
 	rsp |= exword_lock(device);
-	if (rsp == 0x20)
+	if (rsp == EXWORD_SUCCESS)
 		printf("Done\n");
 	else
 		printf("Failed\n");
-	return (rsp == 0x20);
+	return (rsp == EXWORD_SUCCESS);
 }
 
 int dict_install(exword_t *device, char *root, char *id)
@@ -472,7 +472,7 @@ int dict_install(exword_t *device, char *root, char *id)
 	}
 	size = _get_size(dir);
 	rsp = exword_get_capacity(device, &cap);
-	if (rsp != 0x20 || size >= cap.free || size < 0) {
+	if (rsp != EXWORD_SUCCESS || size >= cap.free || size < 0) {
 		printf("Insufficent space on device.\n");
 		free(dir);
 		closedir(dhandle);
@@ -488,7 +488,7 @@ int dict_install(exword_t *device, char *root, char *id)
 	rsp |= exword_cname(device, name, id);
 	rsp |= exword_cryptkey(device, &ck);
 	free(name);
-	if (rsp == 0x20) {
+	if (rsp == EXWORD_SUCCESS) {
 		path = mkpath("\\", root, id, "_CONTENT", NULL);
 		exword_setpath(device, path, 1);
 		free(path);
@@ -510,5 +510,5 @@ int dict_install(exword_t *device, char *root, char *id)
 	}
 	free(dir);
 	rsp |= exword_lock(device);
-	return (rsp == 0x20);
+	return (rsp == EXWORD_SUCCESS);
 }

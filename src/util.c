@@ -26,6 +26,7 @@
 #include <fcntl.h>
 #include <limits.h>
 #include <stdarg.h>
+#include <errno.h>
 
 #if defined(__MINGW32__)
 # include <shlwapi.h>
@@ -141,39 +142,43 @@ char * mkpath(const char* separator, const char *base, ...)
 
 int read_file(const char* filename, char **buffer, int *len)
 {
-	int fd;
+	int fd, err;
 	struct stat buf;
 	*buffer = NULL;
 	*len = 0;
 	fd = open(filename, O_RDONLY | O_BINARY);
 	if (fd < 0)
-		return 0x44;
+		return -1;
 	fstat(fd, &buf);
 	*buffer = xmalloc(buf.st_size);
 	*len = read(fd, *buffer, buf.st_size);
 	if (*len < 0) {
+		err = errno;
 		free(*buffer);
 		*buffer = NULL;
 		*len = 0;
 		close(fd);
-		return 0x50;
+		errno = err;
+		return -1;
 	}
 	close(fd);
-	return 0x20;
+	return 0;
 }
 
 int write_file(const char* filename, char *buffer, int len)
 {
-	int fd, ret;
+	int fd, ret, err;
 	struct stat buf;
 	fd = open(filename, O_WRONLY | O_CREAT | O_TRUNC | O_BINARY, S_IRUSR | S_IWUSR);
 	if (fd < 0)
-		return 0x43;
+		return -1;
 	ret = write(fd, buffer, len);
 	if (ret < 0) {
+		err = errno;
 		close(fd);
-		return 0x50;
+		errno = err;
+		return -1;
 	}
 	close(fd);
-	return 0x20;
+	return 0;
 }

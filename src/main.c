@@ -209,7 +209,7 @@ int _setpath(struct state *s, char* device, char *pathname, int mkdir)
 		p++;
 	}
 	rsp = exword_setpath(s->device, path, mkdir);
-	if (rsp == 0x20) {
+	if (rsp == EXWORD_SUCCESS) {
 		free(s->cwd);
 		s->cwd = xmalloc(strlen(path) + 1);
 		strcpy(s->cwd, path);
@@ -304,13 +304,13 @@ void connect(struct state *s)
 			printf("device not found\n");
 		} else {
 			exword_set_debug(s->device, s->debug);
-			if (exword_connect(s->device) != 0x20) {
+			if (exword_connect(s->device) != EXWORD_SUCCESS) {
 				printf("connect failed\n");
 				exword_close(s->device);
 				s->device = NULL;
 			} else {
-				if (exword_setpath(s->device, ROOT, 0) == 0x20) {
-					if (exword_list(s->device, &entries, &count) == 0x20) {
+				if (exword_setpath(s->device, ROOT, 0) == EXWORD_SUCCESS) {
+					if (exword_list(s->device, &entries, &count) == EXWORD_SUCCESS) {
 						for (i = 0; i < count; i++) {
 							if (strcmp(entries[i].name, "_SD_00") == 0) {
 								s->sd_inserted = 1;
@@ -351,7 +351,7 @@ void model(struct state *s)
 	if (!s->connected)
 		return;
 	rsp = exword_get_model(s->device, &model);
-	if (rsp == 0x20) {
+	if (rsp == EXWORD_SUCCESS) {
 		printf("Model: %s\nSub: %s\n", model.model, model.sub_model);
 		if (model.capabilities & CAP_EXT)
 			printf("Extended: %s\n", model.ext_model);
@@ -363,7 +363,7 @@ void model(struct state *s)
 				model.capabilities & CAP_C ? "C" : "");
 		}
 	} else {
-		printf("%s\n", exword_response_to_string(rsp));
+		printf("%s\n", exword_error_to_string(rsp));
 	}
 }
 
@@ -374,10 +374,10 @@ void capacity(struct state *s)
 	if (!s->connected)
 		return;
 	rsp = exword_get_capacity(s->device, &cap);
-	if (rsp == 0x20)
+	if (rsp == EXWORD_SUCCESS)
 		printf("Capacity: %d / %d\n", cap.total, cap.free);
 	else
-		printf("%s\n", exword_response_to_string(rsp));
+		printf("%s\n", exword_error_to_string(rsp));
 }
 
 void format(struct state *s)
@@ -387,7 +387,7 @@ void format(struct state *s)
 		return;
 	printf("Formatting SD Card...");
 	rsp = exword_sd_format(s->device);
-	printf("%s\n", exword_response_to_string(rsp));
+	printf("%s\n", exword_error_to_string(rsp));
 }
 
 void send(struct state *s)
@@ -406,11 +406,11 @@ void send(struct state *s)
 		strcpy(name, filename);
 		printf("uploading...");
 		rsp = read_file(name, &buffer, &len);
-		if (rsp == 0x20)
+		if (rsp == 0)
 			rsp = exword_send_file(s->device, basename(name), buffer, len);
 		free(name);
 		free(buffer);
-		printf("%s\n", exword_response_to_string(rsp));
+		printf("%s\n", exword_error_to_string(rsp));
 	}
 }
 
@@ -429,11 +429,11 @@ void get(struct state *s)
 		strcpy(name, filename);
 		printf("downloading...");
 		rsp = exword_get_file(s->device, basename(name), &buffer, &len);
-		if (rsp == 0x20)
+		if (rsp == EXWORD_SUCCESS)
 			rsp = write_file(filename, buffer, len);
 		free(name);
 		free(buffer);
-		printf("%s\n", exword_response_to_string(rsp));
+		printf("%s\n", exword_error_to_string(rsp));
 	}
 }
 
@@ -452,7 +452,7 @@ void delete(struct state *s)
 			rsp = exword_remove_file(s->device, filename + 1, 1);
 		else
 			rsp = exword_remove_file(s->device, filename, 0);
-		printf("%s\n", exword_response_to_string(rsp));
+		printf("%s\n", exword_error_to_string(rsp));
 	}
 }
 
@@ -466,7 +466,7 @@ void list(struct state *s)
 	if (!s->connected)
 		return;
 	rsp = exword_list(s->device, &entries, &count);
-	if (rsp == 0x20) {
+	if (rsp == EXWORD_SUCCESS) {
 		for (i = 0; i < count; i++) {
 			if (entries[i].flags & LIST_F_UNICODE) {
 				utf16_to_locale(&name, &len,
@@ -485,7 +485,7 @@ void list(struct state *s)
 		}
 		exword_free_list(entries);
 	}
-	printf("%s\n", exword_response_to_string(rsp));
+	printf("%s\n", exword_error_to_string(rsp));
 }
 
 int dict_list_remote(exword_t *device, char *root);
@@ -604,7 +604,7 @@ void dict(struct state *s)
 		} else {
 			printf("Unknown subfunction\n");
 		}
-		if (exword_setpath(s->device, s->cwd, 0) != 0x20) {
+		if (exword_setpath(s->device, s->cwd, 0) != EXWORD_SUCCESS) {
 			_setpath(s, root, "/", 0);
 		}
 		free(subfunc);
@@ -626,8 +626,8 @@ void setpath(struct state *s)
 		if (rsp > 0) {
 			if (s->sd_inserted) {
 				rsp = _setpath(s, SD_CARD, path2, s->mkdir);
-				if (rsp != 0x20) {
-					printf("%s\n", exword_response_to_string(rsp));
+				if (rsp != EXWORD_SUCCESS) {
+					printf("%s\n", exword_error_to_string(rsp));
 					exword_setpath(s->device, s->cwd, 0);
 				}
 			} else {
@@ -637,8 +637,8 @@ void setpath(struct state *s)
 			rsp = sscanf(path, "mem://%255s", path2);
 			if (rsp > 0) {
 				rsp = _setpath(s, INTERNAL_MEM, path2, s->mkdir);
-				if (rsp != 0x20) {
-					printf("%s\n", exword_response_to_string(rsp));
+				if (rsp != EXWORD_SUCCESS) {
+					printf("%s\n", exword_error_to_string(rsp));
 					exword_setpath(s->device, s->cwd, 0);
 				}
 			} else {

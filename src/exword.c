@@ -90,6 +90,30 @@ struct exword_t {
 };
 /// @endcond
 
+
+static int obex_to_exword_error(exword_t *self, int obex_rsp)
+{
+	switch(obex_rsp) {
+	case OBEX_RSP_SUCCESS:
+		return EXWORD_SUCCESS;
+	case OBEX_RSP_FORBIDDEN:
+		return EXWORD_ERROR_FORBIDDEN;
+	case OBEX_RSP_NOT_FOUND:
+		return EXWORD_ERROR_NOT_FOUND;
+	case OBEX_RSP_INTERNAL_SERVER_ERROR:
+		/* Send disconnect on Internal Errors.
+		 * No commands will work after receiving an internal error
+		 * and the DP3 series autodisconnect anyways. Explicitly
+		 * calling exword_disconnect is done since DP5s (and maybe DP4s)
+		 * do not autodisconnect.
+		 */
+		exword_disconnect(self);
+		return EXWORD_ERROR_INTERNAL;
+	default:
+		return EXWORD_ERROR_OTHER;
+	}
+}
+
 static char * convert (iconv_t cd,
 		char **dst, int *dstsz,
 		const char *src, int srcsz)
@@ -447,7 +471,7 @@ int exword_connect(exword_t *self)
 		return -1;
 	rsp = obex_request(self->obex_ctx, obj);
 	obex_object_delete(self->obex_ctx, obj);
-	return rsp;
+	return obex_to_exword_error(self, rsp);
 }
 
 /** @ingroup cmd
@@ -466,11 +490,11 @@ int exword_send_file(exword_t *self, char* filename, char *buffer, int len)
 	char *unicode;
 	unicode = locale_to_utf16(&unicode, &length, filename, strlen(filename) + 1);
 	if (unicode == NULL)
-		return -1;
+		return EXWORD_ERROR_OTHER;
 	obex_object_t *obj = obex_object_new(self->obex_ctx, OBEX_CMD_PUT);
 	if (obj == NULL) {
 		free(unicode);
-		return -1;
+		return EXWORD_ERROR_NO_MEM;
 	}
 	hv.bs = unicode;
 	obex_object_addheader(self->obex_ctx, obj, OBEX_HDR_NAME, hv, length, 0);
@@ -481,7 +505,7 @@ int exword_send_file(exword_t *self, char* filename, char *buffer, int len)
 	rsp = obex_request(self->obex_ctx, obj);
 	obex_object_delete(self->obex_ctx, obj);
 	free(unicode);
-	return rsp;
+	return obex_to_exword_error(self, rsp);
 }
 
 /** @ingroup cmd
@@ -505,11 +529,11 @@ int exword_get_file(exword_t *self, char* filename, char **buffer, int *len)
 	*buffer = NULL;
 	unicode = locale_to_utf16(&unicode, &length, filename, strlen(filename) + 1);
 	if (unicode == NULL)
-		return -1;
+		return EXWORD_ERROR_OTHER;
 	obex_object_t *obj = obex_object_new(self->obex_ctx, OBEX_CMD_GET);
 	if (obj == NULL) {
 		free(unicode);
-		return -1;
+		return EXWORD_ERROR_NO_MEM;
 	}
 	hv.bs = unicode;
 	obex_object_addheader(self->obex_ctx, obj, OBEX_HDR_NAME, hv, length, 0);
@@ -528,7 +552,7 @@ int exword_get_file(exword_t *self, char* filename, char **buffer, int *len)
 	}
 	obex_object_delete(self->obex_ctx, obj);
 	free(unicode);
-	return rsp;
+	return obex_to_exword_error(self, rsp);
 }
 
 /** @ingroup cmd
@@ -549,12 +573,12 @@ int exword_remove_file(exword_t *self, char* filename, int convert_to_unicode)
 	if (convert_to_unicode) {
 		unicode = locale_to_utf16(&unicode, &length, filename, length);
 		if (unicode == NULL)
-			return -1;
+			return EXWORD_ERROR_OTHER;
 	}
 	obex_object_t *obj = obex_object_new(self->obex_ctx, OBEX_CMD_PUT);
 	if (obj == NULL) {
 		free(unicode);
-		return -1;
+		return EXWORD_ERROR_NO_MEM;
 	}
 	hv.bs = Remove;
 	obex_object_addheader(self->obex_ctx, obj, OBEX_HDR_NAME, hv, 16, 0);
@@ -565,7 +589,7 @@ int exword_remove_file(exword_t *self, char* filename, int convert_to_unicode)
 	rsp = obex_request(self->obex_ctx, obj);
 	obex_object_delete(self->obex_ctx, obj);
 	free(unicode);
-	return rsp;
+	return obex_to_exword_error(self, rsp);
 }
 
 /** @ingroup cmd
@@ -580,7 +604,7 @@ int exword_sd_format(exword_t *self)
 	obex_headerdata_t hv;
 	obex_object_t *obj = obex_object_new(self->obex_ctx, OBEX_CMD_PUT);
 	if (obj == NULL) {
-		return -1;
+		return EXWORD_ERROR_NO_MEM;
 	}
 	hv.bs = SdFormat;
 	obex_object_addheader(self->obex_ctx, obj, OBEX_HDR_NAME, hv, 20, 0);
@@ -590,7 +614,7 @@ int exword_sd_format(exword_t *self)
 	obex_object_addheader(self->obex_ctx, obj, OBEX_HDR_BODY, hv, 1, 0);
 	rsp = obex_request(self->obex_ctx, obj);
 	obex_object_delete(self->obex_ctx, obj);
-	return rsp;
+	return obex_to_exword_error(self, rsp);
 }
 
 /** @ingroup cmd
@@ -611,11 +635,11 @@ int exword_setpath(exword_t *self, uint8_t *path, uint8_t mkdir)
 	char *unicode;
 	unicode = locale_to_utf16(&unicode, &len, path, strlen(path) + 1);
 	if (unicode == NULL)
-		return -1;
+		return EXWORD_ERROR_OTHER;
 	obex_object_t *obj = obex_object_new(self->obex_ctx, OBEX_CMD_SETPATH);
 	if (obj == NULL) {
 		free(unicode);
-		return -1;
+		return EXWORD_ERROR_NO_MEM;
 	}
 	if (strlen(path) == 0) {
 		len = 0;
@@ -628,7 +652,7 @@ int exword_setpath(exword_t *self, uint8_t *path, uint8_t mkdir)
 	rsp = obex_request(self->obex_ctx, obj);
 	obex_object_delete(self->obex_ctx, obj);
 	free(unicode);
-	return rsp;
+	return obex_to_exword_error(self, rsp);
 }
 
 /** @ingroup cmd
@@ -647,7 +671,7 @@ int exword_get_model(exword_t *self, exword_model_t * model)
 	uint32_t hv_size;
 	obex_object_t *obj = obex_object_new(self->obex_ctx, OBEX_CMD_GET);
 	if (obj == NULL)
-		return -1;
+		return EXWORD_ERROR_NO_MEM;
 	hv.bs = Model;
 	obex_object_addheader(self->obex_ctx, obj, OBEX_HDR_NAME, hv, 14, 0);
 	rsp = obex_request(self->obex_ctx, obj);
@@ -678,7 +702,7 @@ int exword_get_model(exword_t *self, exword_model_t * model)
 		}
 	}
 	obex_object_delete(self->obex_ctx, obj);
-	return rsp;
+	return obex_to_exword_error(self, rsp);
 }
 
 /** @ingroup cmd
@@ -697,7 +721,7 @@ int exword_get_capacity(exword_t *self, exword_capacity_t *cap)
 	uint32_t hv_size;
 	obex_object_t *obj = obex_object_new(self->obex_ctx, OBEX_CMD_GET);
 	if (obj == NULL)
-		return -1;
+		return EXWORD_ERROR_NO_MEM;
 	hv.bs = Cap;
 	obex_object_addheader(self->obex_ctx, obj, OBEX_HDR_NAME, hv, 10, 0);
 	rsp = obex_request(self->obex_ctx, obj);
@@ -712,7 +736,7 @@ int exword_get_capacity(exword_t *self, exword_capacity_t *cap)
 		}
 	}
 	obex_object_delete(self->obex_ctx, obj);
-	return rsp;
+	return obex_to_exword_error(self, rsp);
 }
 
 /** @ingroup cmd
@@ -735,7 +759,7 @@ int exword_list(exword_t *self, exword_dirent_t **entries, uint16_t *count)
 	*entries = NULL;
 	obex_object_t *obj = obex_object_new(self->obex_ctx, OBEX_CMD_GET);
 	if (obj == NULL)
-		return -1;
+		return EXWORD_ERROR_NO_MEM;
 	hv.bs = List;
 	obex_object_addheader(self->obex_ctx, obj, OBEX_HDR_NAME, hv, 12, 0);
 	rsp = obex_request(self->obex_ctx, obj);
@@ -759,7 +783,7 @@ int exword_list(exword_t *self, exword_dirent_t **entries, uint16_t *count)
 		}
 	}
 	obex_object_delete(self->obex_ctx, obj);
-	return rsp;
+	return obex_to_exword_error(self, rsp);
 }
 
 /** @ingroup cmd
@@ -789,7 +813,7 @@ int exword_userid(exword_t *self, exword_userid_t id)
 	obex_headerdata_t hv;
 	obex_object_t *obj = obex_object_new(self->obex_ctx, OBEX_CMD_PUT);
 	if (obj == NULL)
-		return -1;
+		return EXWORD_ERROR_NO_MEM;
 	hv.bs = UserId;
 	obex_object_addheader(self->obex_ctx, obj, OBEX_HDR_NAME, hv, 16, 0);
 	hv.bq4 = 17;
@@ -798,7 +822,7 @@ int exword_userid(exword_t *self, exword_userid_t id)
 	obex_object_addheader(self->obex_ctx, obj, OBEX_HDR_BODY, hv, 17, 0);
 	rsp = obex_request(self->obex_ctx, obj);
 	obex_object_delete(self->obex_ctx, obj);
-	return rsp;
+	return obex_to_exword_error(self, rsp);
 }
 
 /** @ingroup cmd
@@ -817,7 +841,7 @@ int exword_cryptkey(exword_t *self, exword_cryptkey_t *key)
 	uint32_t hv_size;
 	obex_object_t *obj = obex_object_new(self->obex_ctx, OBEX_CMD_GET);
 	if (obj == NULL)
-		return -1;
+		return EXWORD_ERROR_NO_MEM;
 	hv.bs = CryptKey;
 	obex_object_addheader(self->obex_ctx, obj, OBEX_HDR_NAME, hv, 20, 0);
 	hv.bs = key->blk1;
@@ -834,7 +858,7 @@ int exword_cryptkey(exword_t *self, exword_cryptkey_t *key)
 	memcpy(key->key + 12, key->blk2 + 8, 4);
 	get_xor_key(key->key, 16, key->xorkey);
 	obex_object_delete(self->obex_ctx, obj);
-	return rsp;
+	return obex_to_exword_error(self, rsp);
 }
 
 /** @ingroup cmd
@@ -853,12 +877,12 @@ int exword_cname(exword_t *self, char *name, char* dir)
 	char *buffer;
 	obex_object_t *obj = obex_object_new(self->obex_ctx, OBEX_CMD_PUT);
 	if (obj == NULL)
-		return -1;
+		return EXWORD_ERROR_NO_MEM;
 	dir_length = strlen(dir) + 1;
 	name_length = strlen(name) + 1;
 	buffer = malloc(dir_length + name_length);
 	if (buffer == NULL)
-		return -1;
+		return EXWORD_ERROR_NO_MEM;
 	memcpy(buffer, dir, dir_length);
 	memcpy(buffer + dir_length, name, name_length);
 	hv.bs = CName;
@@ -870,7 +894,7 @@ int exword_cname(exword_t *self, char *name, char* dir)
 	rsp = obex_request(self->obex_ctx, obj);
 	obex_object_delete(self->obex_ctx, obj);
 	free(buffer);
-	return rsp;
+	return obex_to_exword_error(self, rsp);
 }
 
 /** @ingroup cmd
@@ -885,7 +909,7 @@ int exword_unlock(exword_t *self)
 	obex_headerdata_t hv;
 	obex_object_t *obj = obex_object_new(self->obex_ctx, OBEX_CMD_PUT);
 	if (obj == NULL)
-		return -1;
+		return EXWORD_ERROR_NO_MEM;
 	hv.bs = Unlock;
 	obex_object_addheader(self->obex_ctx, obj, OBEX_HDR_NAME, hv, 16, 0);
 	hv.bq4 = 1;
@@ -894,7 +918,7 @@ int exword_unlock(exword_t *self)
 	obex_object_addheader(self->obex_ctx, obj, OBEX_HDR_BODY, hv, 1, 0);
 	rsp = obex_request(self->obex_ctx, obj);
 	obex_object_delete(self->obex_ctx, obj);
-	return rsp;
+	return obex_to_exword_error(self, rsp);
 }
 
 /** @ingroup cmd
@@ -909,7 +933,7 @@ int exword_lock(exword_t *self)
 	obex_headerdata_t hv;
 	obex_object_t *obj = obex_object_new(self->obex_ctx, OBEX_CMD_PUT);
 	if (obj == NULL)
-		return -1;
+		return EXWORD_ERROR_NO_MEM;
 	hv.bs = Lock;
 	obex_object_addheader(self->obex_ctx, obj, OBEX_HDR_NAME, hv, 12, 0);
 	hv.bq4 = 1;
@@ -918,7 +942,7 @@ int exword_lock(exword_t *self)
 	obex_object_addheader(self->obex_ctx, obj, OBEX_HDR_BODY, hv, 1, 0);
 	rsp = obex_request(self->obex_ctx, obj);
 	obex_object_delete(self->obex_ctx, obj);
-	return rsp;
+	return obex_to_exword_error(self, rsp);
 }
 
 /** @ingroup cmd
@@ -934,7 +958,7 @@ int exword_authchallenge(exword_t *self, exword_authchallenge_t challenge)
 	obex_headerdata_t hv;
 	obex_object_t *obj = obex_object_new(self->obex_ctx, OBEX_CMD_PUT);
 	if (obj == NULL)
-		return -1;
+		return EXWORD_ERROR_NO_MEM;
 	hv.bs = AuthChallenge;
 	obex_object_addheader(self->obex_ctx, obj, OBEX_HDR_NAME, hv, 30, 0);
 	hv.bq4 = 20;
@@ -943,7 +967,7 @@ int exword_authchallenge(exword_t *self, exword_authchallenge_t challenge)
 	obex_object_addheader(self->obex_ctx, obj, OBEX_HDR_BODY, hv, 20, 0);
 	rsp = obex_request(self->obex_ctx, obj);
 	obex_object_delete(self->obex_ctx, obj);
-	return rsp;
+	return obex_to_exword_error(self, rsp);
 }
 
 /** @ingroup cmd
@@ -962,7 +986,7 @@ int exword_authinfo(exword_t *self, exword_authinfo_t *info)
 	uint32_t hv_size;
 	obex_object_t *obj = obex_object_new(self->obex_ctx, OBEX_CMD_GET);
 	if (obj == NULL)
-		return -1;
+		return EXWORD_ERROR_NO_MEM;
 	hv.bs = AuthInfo;
 	obex_object_addheader(self->obex_ctx, obj, OBEX_HDR_NAME, hv, 20, 0);
 	hv.bs = info->blk1;
@@ -977,7 +1001,7 @@ int exword_authinfo(exword_t *self, exword_authinfo_t *info)
 		}
 	}
 	obex_object_delete(self->obex_ctx, obj);
-	return rsp;
+	return obex_to_exword_error(self, rsp);
 }
 
 /** @ingroup cmd
@@ -991,56 +1015,33 @@ int exword_disconnect(exword_t *self)
 	int rsp;
 	obex_object_t *obj = obex_object_new(self->obex_ctx, OBEX_CMD_DISCONNECT);
 	if (obj == NULL)
-		return -1;
+		return EXWORD_ERROR_NO_MEM;
 	rsp = obex_request(self->obex_ctx, obj);
 	obex_object_delete(self->obex_ctx, obj);
-	return rsp;
+	return obex_to_exword_error(self, rsp);
 }
 
 /** @ingroup misc
- * Converts response code to string
+ * Converts error code to string
  * @note return value is a static string and should not be freed.
- * @param rsp response code
- * @return response message
+ * @param code error code
+ * @return error message
  */
-char *exword_response_to_string(int rsp)
+char *exword_error_to_string(int code)
 {
-	switch (rsp) {
-	case OBEX_RSP_CONTINUE:
-		return "Continue";
-	case OBEX_RSP_SWITCH_PRO:
-		return "Switching protocols";
-	case OBEX_RSP_SUCCESS:
+	switch (code) {
+	case EXWORD_SUCCESS:
 		return "OK, Success";
-	case OBEX_RSP_CREATED:
-		return "Created";
-	case OBEX_RSP_ACCEPTED:
-		return "Accepted";
-	case OBEX_RSP_NO_CONTENT:
-		return "No Content";
-	case OBEX_RSP_BAD_REQUEST:
-		return "Bad Request";
-	case OBEX_RSP_UNAUTHORIZED:
-		return "Unauthorized";
-	case OBEX_RSP_PAYMENT_REQUIRED:
-		return "Payment required";
-	case OBEX_RSP_FORBIDDEN:
+	case EXWORD_ERROR_FORBIDDEN:
 		return "Forbidden";
-	case OBEX_RSP_NOT_FOUND:
+	case EXWORD_ERROR_NOT_FOUND:
 		return "Not found";
-	case OBEX_RSP_METHOD_NOT_ALLOWED:
-		return "Method not allowed";
-	case OBEX_RSP_CONFLICT:
-		return "Conflict";
-	case OBEX_RSP_INTERNAL_SERVER_ERROR:
+	case EXWORD_ERROR_INTERNAL:
 		return "Internal server error";
-	case OBEX_RSP_NOT_IMPLEMENTED:
-		return "Not implemented!";
-	case OBEX_RSP_DATABASE_FULL:
-		return "Database full";
-	case OBEX_RSP_DATABASE_LOCKED:
-		return "Database locked";
+	case EXWORD_ERROR_NO_MEM:
+		return "Insufficient memory";
+	case EXWORD_ERROR_OTHER:
 	default:
-		return "Unknown response";
+		return "Unknown error";
 	}
 }
