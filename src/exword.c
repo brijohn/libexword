@@ -128,9 +128,8 @@ static char * convert (iconv_t cd,
 
 	outlen = inleft;
 
-	if (!(output = malloc(outlen))) {
+	if (!(output = malloc(outlen)))
 		return NULL;
-	}
 
 	do {
 		errno = 0;
@@ -156,7 +155,7 @@ static char * convert (iconv_t cd,
 		output = tmp;
 	} while (1);
 	iconv(cd, NULL, NULL, &outbuf, &outleft);
-	if (dst  != NULL)
+	if (dst != NULL)
 		*dst = output;
 	if (dstsz != NULL)
 		*dstsz = (outbuf - output);
@@ -190,48 +189,24 @@ char * convert_to_locale(char *fmt, char **dst, int *dstsz, const char *src, int
 }
 
 /** @ingroup encoding
- * Convert current locale to utf16.
+ * Convert string from current locale.
  * This function will convert a string from the current locale to
- * UTF-16 encoding.
+ * the the specified format.
  * @note The destination string is allocated by the function and must
  * be freed by the user.
+ * @param[in] fmt encoding format to convert to
  * @param[out] dst destination string
  * @param[out] dstsz size of destination string
  * @param[in] src source string
  * @param[in] srcsz size of source string
  * @returns converted string
  */
-char * locale_to_utf16(char **dst, int *dstsz, const char *src, int srcsz)
+char * convert_from_locale(char *fmt, char **dst, int *dstsz, const char *src, int srcsz)
 {
 	iconv_t cd;
 	*dst = NULL;
 	*dstsz = 0;
-	cd = iconv_open("UTF-16BE", "");
-	if (cd == (iconv_t) -1)
-		return NULL;
-	*dst = convert(cd, dst, dstsz, src, srcsz);
-	iconv_close(cd);
-	return *dst;
-}
-
-/** @ingroup encoding
- * Convert utf16 to current locale.
- * This function will convert a string from UTF-16 to the current
- * locale.
- * @note The destination string is allocated by the function and must
- * be freed by the user.
- * @param[out] dst destination string
- * @param[out] dstsz size of destination string
- * @param[in] src source string
- * @param[in] srcsz size of source string
- * @returns converted string
- */
-char * utf16_to_locale(char **dst, int *dstsz, const char *src, int srcsz)
-{
-	iconv_t cd;
-	*dst = NULL;
-	*dstsz = 0;
-	cd = iconv_open("", "UTF-16BE");
+	cd = iconv_open(fmt, "");
 	if (cd == (iconv_t) -1)
 		return NULL;
 	*dst = convert(cd, dst, dstsz, src, srcsz);
@@ -289,7 +264,9 @@ static void exword_handle_callbacks(obex_t *self, obex_object_t *object, void *u
 		if (hdr->hi == OBEX_HDR_NAME &&
 		    !is_cmd(hdr->hv, ntohs(hdr->hl) - 3)) {
 			free(exword->cb_filename);
-			utf16_to_locale(&exword->cb_filename, &len, hdr->hv, ntohs(hdr->hl) - 3);
+			convert_to_locale("UTF-16BE", &exword->cb_filename, &len, hdr->hv, ntohs(hdr->hl) - 3);
+			if (exword->cb_filename == NULL)
+				exword->cb_filename = strdup("Unknown");
 			exword->cb_filelength = ntohl(*((uint32_t*)(tx_buffer + ntohs(hdr->hl) + 5)));
 			exword->cb_transferred = 0;
 			hdr = (struct obex_unicode_hdr *)(tx_buffer + ntohs(hdr->hl) + 9);
@@ -306,7 +283,9 @@ static void exword_handle_callbacks(obex_t *self, obex_object_t *object, void *u
 		if ((tx_buffer[2] != 0 || tx_buffer[3] != 3) && hdr->hi == OBEX_HDR_NAME) {
 			if (!is_cmd(hdr->hv, ntohs(hdr->hl) - 3)) {
 				free(exword->cb_filename);
-				utf16_to_locale(&exword->cb_filename, &len, hdr->hv, ntohs(hdr->hl) - 3);
+				convert_to_locale("UTF-16BE", &exword->cb_filename, &len, hdr->hv, ntohs(hdr->hl) - 3);
+				if (exword->cb_filename == NULL)
+					exword->cb_filename = strdup("Unknown");
 			} else {
 				free(exword->cb_filename);
 				exword->cb_filename = NULL;
@@ -488,7 +467,7 @@ int exword_send_file(exword_t *self, char* filename, char *buffer, int len)
 	int length, rsp;
 	obex_headerdata_t hv;
 	char *unicode;
-	unicode = locale_to_utf16(&unicode, &length, filename, strlen(filename) + 1);
+	unicode = convert_from_locale("UTF-16BE", &unicode, &length, filename, strlen(filename) + 1);
 	if (unicode == NULL)
 		return EXWORD_ERROR_OTHER;
 	obex_object_t *obj = obex_object_new(self->obex_ctx, OBEX_CMD_PUT);
@@ -527,7 +506,7 @@ int exword_get_file(exword_t *self, char* filename, char **buffer, int *len)
 	char *unicode;
 	*len = 0;
 	*buffer = NULL;
-	unicode = locale_to_utf16(&unicode, &length, filename, strlen(filename) + 1);
+	unicode = convert_from_locale("UTF-16BE", &unicode, &length, filename, strlen(filename) + 1);
 	if (unicode == NULL)
 		return EXWORD_ERROR_OTHER;
 	obex_object_t *obj = obex_object_new(self->obex_ctx, OBEX_CMD_GET);
@@ -571,7 +550,7 @@ int exword_remove_file(exword_t *self, char* filename, int convert_to_unicode)
 	char *unicode = NULL;
 	length = strlen(filename) + 1;
 	if (convert_to_unicode) {
-		unicode = locale_to_utf16(&unicode, &length, filename, length);
+		unicode = convert_from_locale("UTF-16BE", &unicode, &length, filename, length);
 		if (unicode == NULL)
 			return EXWORD_ERROR_OTHER;
 	}
@@ -633,7 +612,7 @@ int exword_setpath(exword_t *self, uint8_t *path, uint8_t mkdir)
 	uint8_t non_hdr[2] = {(mkdir ? 0 : 2), 0x00};
 	obex_headerdata_t hv;
 	char *unicode;
-	unicode = locale_to_utf16(&unicode, &len, path, strlen(path) + 1);
+	unicode = convert_from_locale("UTF-16BE", &unicode, &len, path, strlen(path) + 1);
 	if (unicode == NULL)
 		return EXWORD_ERROR_OTHER;
 	obex_object_t *obj = obex_object_new(self->obex_ctx, OBEX_CMD_SETPATH);

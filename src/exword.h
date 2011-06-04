@@ -236,8 +236,7 @@ extern "C" {
 #endif
 
 char * convert_to_locale(char *fmt, char **dst, int *dstsz, const char *src, int srcsz);
-char * utf16_to_locale(char **dst, int *dstsz, const char *src, int srcsz);
-char * locale_to_utf16(char **dst, int *dstsz, const char *src, int srcsz);
+char * convert_from_locale(char *fmt, char **dst, int *dstsz, const char *src, int srcsz);
 
 void get_xor_key(char *key, long size, char *xorkey);
 void crypt_data(char *data, int size, char *key);

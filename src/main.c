@@ -469,9 +469,9 @@ void list(struct state *s)
 	if (rsp == EXWORD_SUCCESS) {
 		for (i = 0; i < count; i++) {
 			if (entries[i].flags & LIST_F_UNICODE) {
-				utf16_to_locale(&name, &len,
-						entries[i].name,
-						entries[i].size - 3);
+				convert_to_locale("UTF-16BE", &name,
+						  &len, entries[i].name,
+						  entries[i].size - 3);
 				if (entries[i].flags & LIST_F_DIR)
 					printf("<*%s>\n", name);
 				else
