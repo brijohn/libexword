@@ -168,6 +168,7 @@ typedef struct _obex {
 	uint8_t intf_num;
 	uint8_t read_endpoint_address;
 	uint8_t write_endpoint_address;
+	uint8_t interrupt_endpoint_address;
 	uint8_t version;
 	uint8_t locale;
 	uint16_t mtu_rx;

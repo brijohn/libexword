@@ -106,6 +106,10 @@ static int obex_claim_interface(obex_t *ctx)
 					else if (!ctx->write_endpoint_address &&
 						 (ep_desc->bEndpointAddress & 0x80) == LIBUSB_ENDPOINT_OUT)
 						ctx->write_endpoint_address = ep_desc->bEndpointAddress;
+				} else if ((ep_desc->bmAttributes & 3) == LIBUSB_TRANSFER_TYPE_INTERRUPT) {
+					if (!ctx->interrupt_endpoint_address &&
+					    (ep_desc->bEndpointAddress & 0x80) == LIBUSB_ENDPOINT_IN)
+						ctx->interrupt_endpoint_address = ep_desc->bEndpointAddress;
 				}
 			}
 			if (ctx->read_endpoint_address && ctx->write_endpoint_address)

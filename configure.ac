@@ -15,6 +15,7 @@ AM_PROG_CC_C_O
 AC_PATH_PROGS([DOX_PROG], [doxygen], missing)
 AM_CONDITIONAL([DOX_ENABLED], [test "x$DOX_PROG" != "xmissing"])
 
+
 case $host in
   *-*-mingw32*)
 	EXTRA_LIBS="-lws2_32 -lshlwapi"

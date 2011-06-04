@@ -124,6 +124,19 @@ typedef struct exword_t exword_t;
  */
 #define EXWORD_ERROR_OTHER	5
 
+/** @ingroup device
+ * Normal disconnect
+ */
+#define EXWORD_DISCONNECT_NORMAL	1
+/** @ingroup device
+ * Disconnect due to cable being unplugged
+ */
+#define EXWORD_DISCONNECT_UNPLUGGED	2
+/** @ingroup device
+ * Disconnect due to internal server error
+ */
+#define EXWORD_DISCONNECT_ERROR		3
+
 /**
  * Structure representing a directory entry.
  */
@@ -222,14 +235,22 @@ typedef struct {
 #pragma pack()
 
 /** @ingroup misc
- * File transfer callback function,
+ * File transfer callback function.
  * @param filename name of file currently being transferred
  * @param transferred number of bytes transferred so far
  * @param length total length of file
- * @param user_data data pointer specified in \ref exword_register_callbacks
- * @see exword_register_callbacks
+ * @param user_data data pointer specified in \ref exword_register_transfer_callbacks
+ * @see exword_register_transfer_callbacks
  */
 typedef void (*file_cb)(char *filename, uint32_t transferred, uint32_t length, void *user_data);
+
+/** @ingroup device
+ * Disconnect notification function.
+ * @param reason reason for disconnection
+ * @param user_data data pointer specified in \ref exword_register_disconnect_callback
+ * @see exword_register_disconnect_callback
+ */
+typedef void (*disconnect_cb)(int reason, void *user_data);
 
 #ifdef __cplusplus
 extern "C" {
@@ -243,7 +264,9 @@ void crypt_data(char *data, int size, char *key);
 
 char * exword_error_to_string(int code);
 void exword_set_debug(exword_t *self, int level);
-void exword_register_callbacks(exword_t *self, file_cb get, file_cb put, void *userdata);
+void exword_register_transfer_callbacks(exword_t *self, file_cb get, file_cb put, void *userdata);
+void exword_register_disconnect_callback(exword_t *self, disconnect_cb disconnect, void *userdata);
+void exword_handle_disconnect_event(exword_t *self);
 void exword_free_list(exword_dirent_t *entries);
 exword_t * exword_open();
 exword_t * exword_open2(uint16_t options);

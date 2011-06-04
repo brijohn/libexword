@@ -81,18 +81,26 @@ struct exword_t {
 	char manufacturer[20];
 	char product[20];
 
+	int internal_error;
+
 	file_cb put_file_cb;
 	file_cb get_file_cb;
 	void * cb_userdata;
 	char * cb_filename;
 	uint32_t cb_filelength;
 	uint32_t cb_transferred;
+
+	disconnect_cb disconnect_callback;
+	void * disconnect_data;
+	struct libusb_transfer *int_urb;
+	char int_buffer[16];
 };
 /// @endcond
 
 
 static int obex_to_exword_error(exword_t *self, int obex_rsp)
 {
+	self->internal_error = 0;
 	switch(obex_rsp) {
 	case OBEX_RSP_SUCCESS:
 		return EXWORD_SUCCESS;
@@ -107,6 +115,7 @@ static int obex_to_exword_error(exword_t *self, int obex_rsp)
 		 * calling exword_disconnect is done since DP5s (and maybe DP4s)
 		 * do not autodisconnect.
 		 */
+		self->internal_error = 1;
 		exword_disconnect(self);
 		return EXWORD_ERROR_INTERNAL;
 	default:
@@ -249,6 +258,33 @@ static int is_cmd(char *data, int length)
 	return 0;
 }
 
+void send_disconnect_event(exword_t *self, int reason) {
+	if (self->disconnect_callback) {
+		self->disconnect_callback(reason, self->disconnect_data);
+	}
+}
+
+void exword_handle_interrupt(struct libusb_transfer *transfer)
+{
+	exword_t *self = (exword_t *)transfer->user_data;
+	switch(transfer->status) {
+	case LIBUSB_TRANSFER_TIMED_OUT:
+	case LIBUSB_TRANSFER_COMPLETED:
+		libusb_submit_transfer(transfer);
+		break;
+	case LIBUSB_TRANSFER_NO_DEVICE:
+	case LIBUSB_TRANSFER_ERROR:
+		send_disconnect_event(self, EXWORD_DISCONNECT_UNPLUGGED);
+		break;
+	case LIBUSB_TRANSFER_CANCELLED:
+		if (self->internal_error)
+			send_disconnect_event(self, EXWORD_DISCONNECT_ERROR);
+		else
+			send_disconnect_event(self, EXWORD_DISCONNECT_NORMAL);
+		break;
+	}
+}
+
 static void exword_handle_callbacks(obex_t *self, obex_object_t *object, void *userdata)
 {
 	exword_t *exword = (exword_t*)userdata;
@@ -382,14 +418,25 @@ exword_t * exword_open2(uint16_t options)
 	if (i >= ret)
 		goto error;
 
+	self->int_urb = libusb_alloc_transfer(0);
+	if (self->int_urb == NULL)
+		goto error;
+
 	self->obex_ctx = obex_init(self->vid, self->pid);
 	if (self->obex_ctx == NULL)
 		goto error;
 	obex_set_connect_info(self->obex_ctx, ver, locale);
 	obex_register_callback(self->obex_ctx, exword_handle_callbacks, self);
+
+	libusb_fill_interrupt_transfer(self->int_urb, self->obex_ctx->usb_dev,
+				       self->obex_ctx->interrupt_endpoint_address,
+				       self->int_buffer, 16, exword_handle_interrupt,
+				       self, 3000);
+
 	return self;
 
 error:
+	libusb_free_transfer(self->int_urb);
 	free(self);
 	return NULL;
 }
@@ -402,6 +449,7 @@ error:
 void exword_close(exword_t *self)
 {
 	if (self) {
+		libusb_free_transfer(self->int_urb);
 		obex_cleanup(self->obex_ctx);
 		free(self->cb_filename);
 		free(self);
@@ -429,12 +477,42 @@ void exword_set_debug(exword_t *self, int level)
  * @param put pointer to function for reporting upload transfer progress
  * @param userdata pointer passed to callback functions
  */
-void exword_register_callbacks(exword_t *self, file_cb get, file_cb put, void *userdata)
+void exword_register_transfer_callbacks(exword_t *self, file_cb get, file_cb put, void *userdata)
 {
 	self->put_file_cb = put;
 	self->get_file_cb = get;
 	self->cb_userdata = userdata;
 }
+
+/** @ingroup device
+ * Registers callback function for disconnect notifications.
+ * The registered function will be invoked during a disconnect
+ * event.\n\n
+ * To remove a callback use NULL for function pointer
+ * @param self device handle
+ * @param disconnect pointer to disconnect notification function
+ * @param userdata pointer passed to callback function
+ */
+void exword_register_disconnect_callback(exword_t *self, disconnect_cb disconnect, void *userdata)
+{
+	self->disconnect_callback = disconnect;
+	self->disconnect_data = userdata;
+}
+
+/** @ingroup misc
+ * Checks for pending disconnect event.
+ * This function should be called periodically from
+ * your main loop to check for a disconnect event.\n\n
+ * If it is not called no disconnect notification will be
+ * sent to the application.
+ * @param self device handle
+ */
+void exword_handle_disconnect_event(exword_t *self)
+{
+	struct timeval tv = {0, 0};
+	libusb_handle_events_timeout(self->obex_ctx->usb_ctx, &tv);
+}
+
 
 /** @ingroup cmd
  * Send connect command.
@@ -450,6 +528,7 @@ int exword_connect(exword_t *self)
 		return -1;
 	rsp = obex_request(self->obex_ctx, obj);
 	obex_object_delete(self->obex_ctx, obj);
+	libusb_submit_transfer(self->int_urb);
 	return obex_to_exword_error(self, rsp);
 }
 
@@ -992,6 +1071,7 @@ int exword_authinfo(exword_t *self, exword_authinfo_t *info)
 int exword_disconnect(exword_t *self)
 {
 	int rsp;
+	libusb_cancel_transfer(self->int_urb);
 	obex_object_t *obj = obex_object_new(self->obex_ctx, OBEX_CMD_DISCONNECT);
 	if (obj == NULL)
 		return EXWORD_ERROR_NO_MEM;

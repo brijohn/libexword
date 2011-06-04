@@ -39,6 +39,7 @@ struct state {
 	int mkdir;
 	int authenticated;
 	int sd_inserted;
+	int disconnect_event;
 	char *cwd;
 	struct list_head cmd_list;
 };
@@ -71,6 +72,8 @@ void send(struct state *s);
 void get(struct state *s);
 void setpath(struct state *s);
 void dict(struct state *s);
+
+static struct state *st = NULL;
 
 struct command commands[] = {
 {"connect", connect, "connect [mode] [region]\t- connect to attached dictionary\n",
@@ -189,6 +192,18 @@ void fill_arg_list(struct list_head *head, char * str)
 	}
 }
 
+void disconnect_notify(int reason, void *data)
+{
+	struct state *s = (struct state *)data;
+	if (reason == EXWORD_DISCONNECT_UNPLUGGED) {
+		fprintf(stderr, "\nDevice was unplugged\n");
+		s->disconnect_event = 1;
+	} else if (reason == EXWORD_DISCONNECT_ERROR) {
+		fprintf(stderr, "Internal Server Error\n");
+		s->disconnect_event = 1;
+	}
+}
+
 int _setpath(struct state *s, char* device, char *pathname, int mkdir)
 {
 	char *path, *p;
@@ -303,6 +318,7 @@ void connect(struct state *s)
 		if (s->device == NULL) {
 			printf("device not found\n");
 		} else {
+			exword_register_disconnect_callback(s->device, disconnect_notify, s);
 			exword_set_debug(s->device, s->debug);
 			if (exword_connect(s->device) != EXWORD_SUCCESS) {
 				printf("connect failed\n");
@@ -333,7 +349,10 @@ void disconnect(struct state *s)
 {
 	if (!s->connected)
 		return;
-	printf("disconnecting...");
+	if (!s->disconnect_event)
+		printf("disconnecting...done\n");
+	else
+		rl_stuff_char('\n');
 	exword_disconnect(s->device);
 	exword_close(s->device);
 	free(s->cwd);
@@ -341,7 +360,7 @@ void disconnect(struct state *s)
 	s->device = NULL;
 	s->connected = 0;
 	s->authenticated = 0;
-	printf("done\n");
+	s->disconnect_event = 0;
 }
 
 void model(struct state *s)
@@ -723,6 +742,15 @@ char * create_prompt(char *cwd) {
 	return p;
 }
 
+int do_events()
+{
+	if (st->device) {
+		exword_handle_disconnect_event(st->device);
+		if (st->disconnect_event)
+			disconnect(st);
+	}
+}
+
 void interactive(struct state *s)
 {
 	char * line = NULL;
@@ -732,6 +760,9 @@ void interactive(struct state *s)
 	s->running = 1;
 	INIT_LIST_HEAD(&(s->cmd_list));
 	load_history();
+	rl_set_keyboard_input_timeout(10000);
+	rl_event_hook = do_events;
+	st = s;
 	while (s->running) {
 		free(line);
 		free(prompt);
