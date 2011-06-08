@@ -350,7 +350,7 @@ static void exword_handle_callbacks(obex_t *self, obex_object_t *object, void *u
 /** @ingroup device
  * Opens device.
  * This function will open the attached exword device with the default
- * options of \ref OPEN_LIBRARY and \ref LOCALE_JA.
+ * options of \ref EXWORD_MODE_LIBRARY and \ref EXWORD_REGION_JA.
  * @returns pointer to a device handle.
  */
 exword_t * exword_open()
@@ -376,9 +376,9 @@ exword_t * exword_open2(uint16_t options)
 	libusb_device_handle *dev = NULL;
 
 	locale = options & 0xff;
-	if (options & OPEN_TEXT)
+	if (options & EXWORD_MODE_TEXT)
 		ver = locale;
-	else if (options & OPEN_CD)
+	else if (options & EXWORD_MODE_CD)
 		ver = 0xf0;
 	else
 		ver = locale - 0x0f;

@@ -33,109 +33,107 @@ typedef struct exword_t exword_t;
 #define LIST_F_UNICODE 2
 
 /** @ingroup device
- * Japanese Region
+ * EX-word regions.
+ * One of these regions must be specified when calling \ref exword_open.
  */
-#define LOCALE_JA      0x20
-/** @ingroup device
- * Korean Region
- */
-#define LOCALE_KR      0x40
-/** @ingroup device
- * Chinese Region
- */
-#define LOCALE_CN      0x60
-/** @ingroup device
- * German Region
- */
-#define LOCALE_DE      0x80
-/** @ingroup device
- * Spanish Region
- */
-#define LOCALE_ES      0xa0
-/** @ingroup device
- * French Region
- */
-#define LOCALE_FR      0xc0
-/** @ingroup device
- * Russian Region
- */
-#define LOCALE_RU      0xe0
+enum exword_region {
+	/** Japanese Region */
+	EXWORD_REGION_JA = 0x20,
+
+	/** Korean Region */
+	EXWORD_REGION_KR = 0x40,
+
+	/** Chinese Region */
+	EXWORD_REGION_CN = 0x60,
+
+	/** German Region */
+	EXWORD_REGION_DE = 0x80,
+
+	/** Spanish Region */
+	EXWORD_REGION_ES = 0xa0,
+
+	/** French Region */
+	EXWORD_REGION_FR = 0xc0,
+
+	/** Russian Region */
+	EXWORD_REGION_RU = 0xe0,
+};
 
 /** @ingroup device
- *  Opens device in library mode.
- *  This mode is used to install and remove add-on dictionaries.
+ * EX-word modes.
+ * One of these modes must be specified when calling \ref exword_open.
  */
-#define OPEN_LIBRARY   0x0000
-/** @ingroup device
- *  Opens device in text mode.
- *  This mode is used to upload and delete text files.
- */
-#define OPEN_TEXT      0x0100
-/** @ingroup device
- *  Opens device in CD mode.
- *  This mode is used to upload cd audio.
- */
-#define OPEN_CD        0x0200
+enum exword_mode {
+	/** This mode is used to install and remove add-on dictionaries.*/
+	EXWORD_MODE_LIBRARY = 0x0000,
+
+	/** This mode is used to upload and delete text files. */
+	EXWORD_MODE_TEXT    = 0x0100,
+
+	/** This mode is used to upload cd audio. */
+	EXWORD_MODE_CD      = 0x0200,
+};
 
 /** @ingroup cmd
- * SW capability
+ * EX-word capabilities.
+ * Capability bitmasks returned by \ref exword_get_model.
  */
-#define CAP_SW         (1 << 0)
-/** @ingroup cmd
- * P capability
- */
-#define CAP_P          (1 << 1)
-/** @ingroup cmd
- * F capability
- */
-#define CAP_F          (1 << 2)
-/** @ingroup cmd
- * C capability
- */
-#define CAP_C          (1 << 3)
-/** @ingroup cmd
- * Device contains extended model information
- */
-#define CAP_EXT        (1 << 15)
+enum exword_capability {
+	/** SW capability */
+	CAP_SW  = (1 << 0),
 
+	/** P capability */
+	CAP_P   = (1 << 1),
+
+	/** F capability */
+	CAP_F   = (1 << 2),
+
+	/** C capability */
+	CAP_C   = (1 << 3),
+
+	/** Device contains extended model information */
+	CAP_EXT = (1 << 15),
+};
 
 /** @ingroup misc
- * Success (no error)
+ * Error codes.
+ * Most libexword functions return 0 on success or one of these error codes.
  */
-#define EXWORD_SUCCESS		0
-/** @ingroup misc
- * Access denied
- */
-#define EXWORD_ERROR_FORBIDDEN	1
-/** @ingroup misc
- * File not found
- */
-#define EXWORD_ERROR_NOT_FOUND	2
-/** @ingroup misc
- * Internal Error
- */
-#define EXWORD_ERROR_INTERNAL	3
-/** @ingroup misc
- * Insufficient memory
- */
-#define EXWORD_ERROR_NO_MEM	4
-/** @ingroup misc
- * Other error
- */
-#define EXWORD_ERROR_OTHER	5
+enum exword_error {
+	/** Success (no error) */
+	EXWORD_SUCCESS = 0,
+
+	/** Access denied */
+	EXWORD_ERROR_FORBIDDEN,
+
+	/** File not found */
+	EXWORD_ERROR_NOT_FOUND,
+
+	/** Internal Error */
+	EXWORD_ERROR_INTERNAL,
+
+	/** Insufficient memory */
+	EXWORD_ERROR_NO_MEM,
+
+	/** Other error */
+	EXWORD_ERROR_OTHER,
+};
 
 /** @ingroup device
- * Normal disconnect
+ * Disconnect codes.
+ * These codes sent to the application by the disconnect notification handler.
  */
-#define EXWORD_DISCONNECT_NORMAL	1
-/** @ingroup device
- * Disconnect due to cable being unplugged
- */
-#define EXWORD_DISCONNECT_UNPLUGGED	2
-/** @ingroup device
- * Disconnect due to internal server error
- */
-#define EXWORD_DISCONNECT_ERROR		3
+enum exword_disconnect {
+	/** Normal disconnect */
+	EXWORD_DISCONNECT_NORMAL = 1,
+
+	/** Disconnect due to cable being unplugged */
+	EXWORD_DISCONNECT_UNPLUGGED,
+
+	/** Disconnect due to internal server error */
+	EXWORD_DISCONNECT_ERROR,
+};
+
 
 /**
  * Structure representing a directory entry.

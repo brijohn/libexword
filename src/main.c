@@ -265,9 +265,9 @@ void help(struct state *s)
 
 void connect(struct state *s)
 {
-	int  options = OPEN_LIBRARY | LOCALE_JA;
+	int  options = EXWORD_MODE_LIBRARY | EXWORD_REGION_JA;
 	char *mode;
-	char *locale;
+	char *region;
 	int error = 0;
 	int i;
 	uint16_t count;
@@ -278,38 +278,38 @@ void connect(struct state *s)
 	mode = peek_arg(&(s->cmd_list));
 	if (mode != NULL) {
 		if (strcmp(mode, "library") == 0) {
-			options = OPEN_LIBRARY;
+			options = EXWORD_MODE_LIBRARY;
 		} else if (strcmp(mode, "text") == 0) {
-			options = OPEN_TEXT;
+			options = EXWORD_MODE_TEXT;
 		} else if (strcmp(mode, "cd") == 0) {
-			options = OPEN_CD;
+			options = EXWORD_MODE_CD;
 		} else {
-			printf("Unknown 'type': %s\n", mode);
+			printf("Unknown 'mode': %s\n", mode);
 			error = 1;
 		}
 		dequeue_arg(&(s->cmd_list));
-		locale = peek_arg(&(s->cmd_list));
-		if (!error && locale != NULL) {
-			if (strcmp(locale, "ja") == 0) {
-				options |= LOCALE_JA;
-			} else if (strcmp(locale, "kr") == 0) {
-				options |= LOCALE_KR;
-			} else if (strcmp(locale, "cn") == 0) {
-				options |= LOCALE_CN;
-			} else if (strcmp(locale, "de") == 0) {
-				options |= LOCALE_DE;
-			} else if (strcmp(locale, "es") == 0) {
-				options |= LOCALE_ES;
-			} else if (strcmp(locale, "fr") == 0) {
-				options |= LOCALE_FR;
-			} else if (strcmp(locale, "ru") == 0) {
-				options |= LOCALE_RU;
+		region = peek_arg(&(s->cmd_list));
+		if (!error && region != NULL) {
+			if (strcmp(region, "ja") == 0) {
+				options |= EXWORD_REGION_JA;
+			} else if (strcmp(region, "kr") == 0) {
+				options |= EXWORD_REGION_KR;
+			} else if (strcmp(region, "cn") == 0) {
+				options |= EXWORD_REGION_CN;
+			} else if (strcmp(region, "de") == 0) {
+				options |= EXWORD_REGION_DE;
+			} else if (strcmp(region, "es") == 0) {
+				options |= EXWORD_REGION_ES;
+			} else if (strcmp(region, "fr") == 0) {
+				options |= EXWORD_REGION_FR;
+			} else if (strcmp(region, "ru") == 0) {
+				options |= EXWORD_REGION_RU;
 			} else {
-				printf("Unknown 'locale': %s\n", locale);
+				printf("Unknown 'region': %s\n", region);
 				error = 1;
 			}
 		} else if (!error) {
-			options |= LOCALE_JA;
+			options |= EXWORD_REGION_JA;
 		}
 	}
 	if (!error) {
@@ -523,7 +523,7 @@ void dict(struct state *s)
 	char *subfunc, *id, *user;
 	if (!s->connected)
 		return;
-	if (s->mode != OPEN_LIBRARY) {
+	if (s->mode != EXWORD_MODE_LIBRARY) {
 		printf("Only available in library mode.\n");
 		return;
 	}
