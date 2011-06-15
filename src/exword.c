@@ -76,10 +76,6 @@ static const char AuthInfo[] = {0,'_',0,'A', 0, 'u', 0, 't', 0, 'h', 0, 'I', 0, 
 /// @cond exclude
 struct exword_t {
 	obex_t *obex_ctx;
-	uint16_t vid;
-	uint16_t pid;
-	char manufacturer[20];
-	char product[20];
 
 	int internal_error;
 
@@ -367,13 +363,8 @@ exword_t * exword_open()
  */
 exword_t * exword_open2(uint16_t options)
 {
-	int i;
 	ssize_t ret;
 	uint8_t ver, locale;
-	struct libusb_device_descriptor desc;
-	libusb_device **dev_list = NULL;
-	libusb_device *device = NULL;
-	libusb_device_handle *dev = NULL;
 
 	locale = options & 0xff;
 	if (options & EXWORD_MODE_TEXT)
@@ -384,47 +375,20 @@ exword_t * exword_open2(uint16_t options)
 		ver = locale - 0x0f;
 
 	exword_t *self = malloc(sizeof(exword_t));
+
 	if (self == NULL)
 		return NULL;
+
 	memset(self, 0, sizeof(exword_t));
-	ret = libusb_init(NULL);
-	if (ret < 0)
-		goto error;
-
-	ret = libusb_get_device_list(NULL, &dev_list);
-	if (ret < 0) {
-		libusb_exit(NULL);
-		goto error;
-	}
-
-	for (i = 0; i < ret; i++) {
-		device = dev_list[i];
-		if (libusb_get_device_descriptor(device, &desc) == 0) {
-			if (desc.idVendor == 0x07cf && desc.idProduct == 0x6101) {
-				if (libusb_open(device, &dev) >= 0) {
-					self->vid = desc.idVendor;
-					self->pid = desc.idProduct;
-					libusb_get_string_descriptor_ascii(dev, desc.iManufacturer, self->manufacturer, 20);
-					libusb_get_string_descriptor_ascii(dev, desc.iProduct, self->product, 20);
-					libusb_close(dev);
-					break;
-				}
-			}
-		}
-	}
-	libusb_free_device_list(dev_list, 1);
-	libusb_exit(NULL);
-
-	if (i >= ret)
-		goto error;
 
 	self->int_urb = libusb_alloc_transfer(0);
 	if (self->int_urb == NULL)
-		goto error;
+		goto free_self;
 
-	self->obex_ctx = obex_init(self->vid, self->pid);
+	self->obex_ctx = obex_init(0x07cf, 0x6101);
 	if (self->obex_ctx == NULL)
-		goto error;
+		goto free_transfer;
+
 	obex_set_connect_info(self->obex_ctx, ver, locale);
 	obex_register_callback(self->obex_ctx, exword_handle_callbacks, self);
 
@@ -432,11 +396,11 @@ exword_t * exword_open2(uint16_t options)
 				       self->obex_ctx->interrupt_endpoint_address,
 				       self->int_buffer, 16, exword_handle_interrupt,
 				       self, 3000);
-
 	return self;
 
-error:
+free_transfer:
 	libusb_free_transfer(self->int_urb);
+free_self:
 	free(self);
 	return NULL;
 }
