@@ -268,8 +268,7 @@ void exword_handle_disconnect_event(exword_t *self);
 void exword_free_list(exword_dirent_t *entries);
 exword_t * exword_open();
 exword_t * exword_open2(uint16_t options);
-void exword_close(exword_t *self);
-int exword_connect(exword_t *self);
+int exword_close(exword_t *self);
 int exword_send_file(exword_t *self, char* filename, char *buffer, int len);
 int exword_get_file(exword_t *self, char* filename, char **buffer, int *len);
 int exword_remove_file(exword_t *self, char* filename, int convert_to_unicode);
@@ -285,7 +284,6 @@ int exword_unlock(exword_t *self);
 int exword_lock(exword_t *self);
 int exword_authchallenge(exword_t *self, exword_authchallenge_t challenge);
 int exword_authinfo(exword_t *self, exword_authinfo_t *info);
-int exword_disconnect(exword_t *self);
 
 #ifdef __cplusplus
 }

@@ -96,6 +96,7 @@ struct exword_t {
 
 static int obex_to_exword_error(exword_t *self, int obex_rsp)
 {
+	obex_object_t *obj;
 	self->internal_error = 0;
 	switch(obex_rsp) {
 	case OBEX_RSP_SUCCESS:
@@ -112,7 +113,12 @@ static int obex_to_exword_error(exword_t *self, int obex_rsp)
 		 * do not autodisconnect.
 		 */
 		self->internal_error = 1;
-		exword_disconnect(self);
+		libusb_cancel_transfer(self->int_urb);
+		obj = obex_object_new(self->obex_ctx, OBEX_CMD_DISCONNECT);
+		if (obj != NULL) {
+			obex_request(self->obex_ctx, obj);
+			obex_object_delete(self->obex_ctx, obj);
+		}
 		return EXWORD_ERROR_INTERNAL;
 	default:
 		return EXWORD_ERROR_OTHER;
@@ -396,8 +402,23 @@ exword_t * exword_open2(uint16_t options)
 				       self->obex_ctx->interrupt_endpoint_address,
 				       self->int_buffer, 16, exword_handle_interrupt,
 				       self, 3000);
+
+
+	obex_object_t *obj = obex_object_new(self->obex_ctx, OBEX_CMD_CONNECT);
+	if (obj == NULL)
+		goto free_context;
+
+	ret = obex_request(self->obex_ctx, obj);
+	obex_object_delete(self->obex_ctx, obj);
+	if (ret != OBEX_RSP_SUCCESS)
+		goto free_context;
+
+	libusb_submit_transfer(self->int_urb);
+
 	return self;
 
+free_context:
+	obex_cleanup(self->obex_ctx);
 free_transfer:
 	libusb_free_transfer(self->int_urb);
 free_self:
@@ -409,15 +430,23 @@ free_self:
  * Closes device.
  * This function closes the device and performs necessary cleanup.
  * @param self device handle
+ * @return response code
  */
-void exword_close(exword_t *self)
+int exword_close(exword_t *self)
 {
 	if (self) {
+		obex_object_t *obj = obex_object_new(self->obex_ctx, OBEX_CMD_DISCONNECT);
+		if (obj == NULL)
+			return EXWORD_ERROR_NO_MEM;
+		libusb_cancel_transfer(self->int_urb);
+		obex_request(self->obex_ctx, obj);
+		obex_object_delete(self->obex_ctx, obj);
 		libusb_free_transfer(self->int_urb);
 		obex_cleanup(self->obex_ctx);
 		free(self->cb_filename);
 		free(self);
 	}
+	return EXWORD_SUCCESS;
 }
 
 /** @ingroup misc
@@ -477,24 +506,6 @@ void exword_handle_disconnect_event(exword_t *self)
 	libusb_handle_events_timeout(self->obex_ctx->usb_ctx, &tv);
 }
 
-
-/** @ingroup cmd
- * Send connect command.
- * @note Any commands sent before this will fail.
- * @param self device handle
- * @return response code
- */
-int exword_connect(exword_t *self)
-{
-	int rsp;
-	obex_object_t *obj = obex_object_new(self->obex_ctx, OBEX_CMD_CONNECT);
-	if (obj == NULL)
-		return -1;
-	rsp = obex_request(self->obex_ctx, obj);
-	obex_object_delete(self->obex_ctx, obj);
-	libusb_submit_transfer(self->int_urb);
-	return obex_to_exword_error(self, rsp);
-}
 
 /** @ingroup cmd
  * Upload a file to device.
@@ -1026,23 +1037,6 @@ int exword_authinfo(exword_t *self, exword_authinfo_t *info)
 	return obex_to_exword_error(self, rsp);
 }
 
-/** @ingroup cmd
- * Disconnect from device.
- * This function should be the last command sent and will disconnect from the device.
- * @param self device handle
- * @return response code
- */
-int exword_disconnect(exword_t *self)
-{
-	int rsp;
-	libusb_cancel_transfer(self->int_urb);
-	obex_object_t *obj = obex_object_new(self->obex_ctx, OBEX_CMD_DISCONNECT);
-	if (obj == NULL)
-		return EXWORD_ERROR_NO_MEM;
-	rsp = obex_request(self->obex_ctx, obj);
-	obex_object_delete(self->obex_ctx, obj);
-	return obex_to_exword_error(self, rsp);
-}
 
 /** @ingroup misc
  * Converts error code to string

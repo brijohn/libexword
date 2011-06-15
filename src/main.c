@@ -320,27 +320,21 @@ void connect(struct state *s)
 		} else {
 			exword_register_disconnect_callback(s->device, disconnect_notify, s);
 			exword_set_debug(s->device, s->debug);
-			if (exword_connect(s->device) != EXWORD_SUCCESS) {
-				printf("connect failed\n");
-				exword_close(s->device);
-				s->device = NULL;
-			} else {
-				if (exword_setpath(s->device, ROOT, 0) == EXWORD_SUCCESS) {
-					if (exword_list(s->device, &entries, &count) == EXWORD_SUCCESS) {
-						for (i = 0; i < count; i++) {
-							if (strcmp(entries[i].name, "_SD_00") == 0) {
-								s->sd_inserted = 1;
-								break;
-							}
+			if (exword_setpath(s->device, ROOT, 0) == EXWORD_SUCCESS) {
+				if (exword_list(s->device, &entries, &count) == EXWORD_SUCCESS) {
+					for (i = 0; i < count; i++) {
+						if (strcmp(entries[i].name, "_SD_00") == 0) {
+							s->sd_inserted = 1;
+							break;
 						}
-						exword_free_list(entries);
 					}
+					exword_free_list(entries);
 				}
-				_setpath(s, INTERNAL_MEM, "/", 2);
-				s->connected = 1;
-				s->mode = (options & 0xff00);
-				printf("done\n");
 			}
+			_setpath(s, INTERNAL_MEM, "/", 2);
+			s->connected = 1;
+			s->mode = (options & 0xff00);
+			printf("done\n");
 		}
 	}
 }
@@ -353,7 +347,6 @@ void disconnect(struct state *s)
 		printf("disconnecting...done\n");
 	else
 		rl_stuff_char('\n');
-	exword_disconnect(s->device);
 	exword_close(s->device);
 	free(s->cwd);
 	s->cwd = NULL;
