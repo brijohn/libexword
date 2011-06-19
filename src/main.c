@@ -320,7 +320,7 @@ void connect(struct state *s)
 		} else {
 			exword_register_disconnect_callback(s->device, disconnect_notify, s);
 			exword_set_debug(s->device, s->debug);
-			if (exword_setpath(s->device, ROOT, 0) == EXWORD_SUCCESS) {
+			if (exword_setpath(s->device, "", 0) == EXWORD_SUCCESS) {
 				if (exword_list(s->device, &entries, &count) == EXWORD_SUCCESS) {
 					for (i = 0; i < count; i++) {
 						if (strcmp(entries[i].name, "_SD_00") == 0) {
@@ -331,7 +331,7 @@ void connect(struct state *s)
 					exword_free_list(entries);
 				}
 			}
-			_setpath(s, INTERNAL_MEM, "/", 2);
+			_setpath(s, "\\_INTERNAL_00", "/", 2);
 			s->connected = 1;
 			s->mode = (options & 0xff00);
 			printf("done\n");
@@ -480,16 +480,16 @@ void list(struct state *s)
 	rsp = exword_list(s->device, &entries, &count);
 	if (rsp == EXWORD_SUCCESS) {
 		for (i = 0; i < count; i++) {
-			if (entries[i].flags & LIST_F_UNICODE) {
+			if (ENTRY_IS_UNICODE(&entries[i])) {
 				convert_to_locale("UTF-16BE", &name,
 						  &len, entries[i].name,
 						  entries[i].size - 3);
-				if (entries[i].flags & LIST_F_DIR)
+				if (ENTRY_IS_DIRECTORY(&entries[i]))
 					printf("<*%s>\n", name);
 				else
 					printf("*%s\n", name);
 			} else {
-				if (entries[i].flags & LIST_F_DIR)
+				if (ENTRY_IS_DIRECTORY(&entries[i]))
 					printf("<%s>\n", entries[i].name);
 				else
 					printf("%s\n", entries[i].name);
@@ -637,7 +637,7 @@ void setpath(struct state *s)
 		rsp = sscanf(path, "sd://%255s", path2);
 		if (rsp > 0) {
 			if (s->sd_inserted) {
-				rsp = _setpath(s, SD_CARD, path2, s->mkdir);
+				rsp = _setpath(s, "\\_SD_00", path2, s->mkdir);
 				if (rsp != EXWORD_SUCCESS) {
 					printf("%s\n", exword_error_to_string(rsp));
 					exword_setpath(s->device, s->cwd, 0);
@@ -648,7 +648,7 @@ void setpath(struct state *s)
 		} else {
 			rsp = sscanf(path, "mem://%255s", path2);
 			if (rsp > 0) {
-				rsp = _setpath(s, INTERNAL_MEM, path2, s->mkdir);
+				rsp = _setpath(s, "\\_INTERNAL_00", path2, s->mkdir);
 				if (rsp != EXWORD_SUCCESS) {
 					printf("%s\n", exword_error_to_string(rsp));
 					exword_setpath(s->device, s->cwd, 0);

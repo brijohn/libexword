@@ -25,12 +25,21 @@
 
 typedef struct exword_t exword_t;
 
-#define SD_CARD		"\\_SD_00"
-#define INTERNAL_MEM	"\\_INTERNAL_00"
-#define ROOT		""
 
-#define LIST_F_DIR     1
-#define LIST_F_UNICODE 2
+/** @def ENTRY_IS_UNICODE
+ * @ingroup cmd
+ * Test if list entry is stored as a unicode string.
+ * @param entry pointer to an \ref exword_dirent_t structure
+ * @returns returns true if entry name is stored in UTF16 format false otherwise
+ */
+#define ENTRY_IS_UNICODE(entry) (((entry)->flags & 2) != 0)
+/** @def ENTRY_IS_DIRECTORY
+ * @ingroup cmd
+ * Test if list entry is a directory.
+ * @param entry pointer to an \ref exword_dirent_t structure
+ * @returns returns true if entry is a directory false otherwise
+ */
+#define ENTRY_IS_DIRECTORY(entry) (((entry)->flags & 1) != 0)
 
 /** @ingroup device
  * EX-word regions.
