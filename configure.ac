@@ -2,7 +2,7 @@
 # Process this file with autoconf to produce a configure script.
 
 AC_PREREQ([2.61])
-AC_INIT(libexword, 0.1, brijohn@gmail.com)
+AC_INIT(libexword, 2.0, brijohn@gmail.com)
 AM_INIT_AUTOMAKE([-Wall -Werror])
 AC_CONFIG_SRCDIR([src/exword.c])
 AC_CONFIG_HEADERS([config.h])

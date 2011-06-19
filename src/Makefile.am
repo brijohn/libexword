@@ -1,4 +1,4 @@
-LIBEXWORD_LIBRARY_VERSION=1:0:0
+LIBEXWORD_LIBRARY_VERSION=2:0:0
 lib_LTLIBRARIES = libexword.la
 bin_PROGRAMS = exword
 libexword_la_SOURCES =	exword.c \
