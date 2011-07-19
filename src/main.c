@@ -314,7 +314,7 @@ void connect(struct state *s)
 	}
 	if (!error) {
 		printf("connecting to device...");
-		s->device = exword_open2(options);
+		s->device = exword_open(options);
 		if (s->device == NULL) {
 			printf("device not found\n");
 		} else {

@@ -275,8 +275,7 @@ void exword_register_transfer_callbacks(exword_t *self, file_cb get, file_cb put
 void exword_register_disconnect_callback(exword_t *self, disconnect_cb disconnect, void *userdata);
 void exword_handle_disconnect_event(exword_t *self);
 void exword_free_list(exword_dirent_t *entries);
-exword_t * exword_open();
-exword_t * exword_open2(uint16_t options);
+exword_t * exword_open(uint16_t options);
 int exword_close(exword_t *self);
 int exword_send_file(exword_t *self, char* filename, char *buffer, int len);
 int exword_get_file(exword_t *self, char* filename, char **buffer, int *len);

@@ -351,23 +351,12 @@ static void exword_handle_callbacks(obex_t *self, obex_object_t *object, void *u
 
 /** @ingroup device
  * Opens device.
- * This function will open the attached exword device with the default
- * options of \ref EXWORD_MODE_LIBRARY and \ref EXWORD_REGION_JA.
- * @returns pointer to a device handle.
- */
-exword_t * exword_open()
-{
-	return exword_open2(0x0020);
-}
-
-/** @ingroup device
- * Opens device.
  * This function will open the attached device using the specified mode
  * and region.
  * @param options bit mask of mode and region
  * @returns pointer to a device handle.
  */
-exword_t * exword_open2(uint16_t options)
+exword_t * exword_open(uint16_t options)
 {
 	ssize_t ret;
 	uint8_t ver, locale;
