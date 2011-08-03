@@ -77,7 +77,7 @@ static const char AuthInfo[] = {0,'_',0,'A', 0, 'u', 0, 't', 0, 'h', 0, 'I', 0, 
 struct exword_t {
 	obex_t *obex_ctx;
 
-	int internal_error;
+	int status;
 
 	file_cb put_file_cb;
 	file_cb get_file_cb;
@@ -97,7 +97,6 @@ struct exword_t {
 static int obex_to_exword_error(exword_t *self, int obex_rsp)
 {
 	obex_object_t *obj;
-	self->internal_error = 0;
 	switch(obex_rsp) {
 	case OBEX_RSP_SUCCESS:
 		return EXWORD_SUCCESS;
@@ -112,7 +111,8 @@ static int obex_to_exword_error(exword_t *self, int obex_rsp)
 		 * calling exword_disconnect is done since DP5s (and maybe DP4s)
 		 * do not autodisconnect.
 		 */
-		self->internal_error = 1;
+		if (!(self->status & 0x07))
+			self->status |= EXWORD_DISCONNECT_ERROR;
 		libusb_cancel_transfer(self->int_urb);
 		obj = obex_object_new(self->obex_ctx, OBEX_CMD_DISCONNECT);
 		if (obj != NULL) {
@@ -276,13 +276,8 @@ void exword_handle_interrupt(struct libusb_transfer *transfer)
 		break;
 	case LIBUSB_TRANSFER_NO_DEVICE:
 	case LIBUSB_TRANSFER_ERROR:
-		send_disconnect_event(self, EXWORD_DISCONNECT_UNPLUGGED);
-		break;
-	case LIBUSB_TRANSFER_CANCELLED:
-		if (self->internal_error)
-			send_disconnect_event(self, EXWORD_DISCONNECT_ERROR);
-		else
-			send_disconnect_event(self, EXWORD_DISCONNECT_NORMAL);
+		if (!(self->status & 0x07))
+			self->status |= EXWORD_DISCONNECT_UNPLUGGED;
 		break;
 	}
 }
@@ -349,17 +344,66 @@ static void exword_handle_callbacks(obex_t *self, obex_object_t *object, void *u
 	}
 }
 
+
 /** @ingroup device
- * Opens device.
- * This function will open the attached device using the specified mode
- * and region.
- * @param options bit mask of mode and region
- * @returns pointer to a device handle.
+ * Init exword library.
+ * This function initializes exword library.
+ * @returns device handle
  */
-exword_t * exword_open(uint16_t options)
+exword_t * exword_init()
+{
+	exword_t *self = malloc(sizeof(exword_t));
+
+	if (self == NULL)
+		return NULL;
+
+	memset(self, 0, sizeof(exword_t));
+
+	self->status = 0x80;
+
+	return self;
+}
+
+/** @ingroup device
+ * Deinit exword library.
+ * This function disconnect if currently connected and clean up free library resources.
+ * @param self device handle
+ */
+void exword_deinit(exword_t *self)
+{
+	if (exword_is_connected(self))
+		exword_disconnect(self);
+
+	free(self->cb_filename);
+	free(self);
+}
+
+/** @ingroup device
+ * Checks if device is connected.
+ * This function checks the connected status of the device.
+ * @param self device handle
+ * @returns true if connected, otherwise false.
+ */
+int exword_is_connected(exword_t * self)
+{
+	return !(self->status & 0x80);
+}
+
+/** @ingroup cmd
+ * Connects to device.
+ * This function will connect to the device using the specified mode
+ * and region.
+ * @param self device handle
+ * @param options bit mask of mode and region
+ * @returns response code.
+ */
+int exword_connect(exword_t *self, uint16_t options)
 {
 	ssize_t ret;
 	uint8_t ver, locale;
+
+	if (exword_is_connected(self))
+		goto error;
 
 	locale = options & 0xff;
 	if (options & EXWORD_MODE_TEXT)
@@ -369,16 +413,9 @@ exword_t * exword_open(uint16_t options)
 	else
 		ver = locale - 0x0f;
 
-	exword_t *self = malloc(sizeof(exword_t));
-
-	if (self == NULL)
-		return NULL;
-
-	memset(self, 0, sizeof(exword_t));
-
 	self->int_urb = libusb_alloc_transfer(0);
 	if (self->int_urb == NULL)
-		goto free_self;
+		goto error;
 
 	self->obex_ctx = obex_init(0x07cf, 0x6101);
 	if (self->obex_ctx == NULL)
@@ -403,27 +440,30 @@ exword_t * exword_open(uint16_t options)
 		goto free_context;
 
 	libusb_submit_transfer(self->int_urb);
+	self->status = 0x00;
 
-	return self;
+	return EXWORD_SUCCESS;
 
 free_context:
 	obex_cleanup(self->obex_ctx);
 free_transfer:
 	libusb_free_transfer(self->int_urb);
-free_self:
-	free(self);
-	return NULL;
+error:
+	return EXWORD_ERROR_OTHER;
 }
 
-/** @ingroup device
- * Closes device.
- * This function closes the device and performs necessary cleanup.
+/** @ingroup cmd
+ * Disconnects from device.
+ * This function disconnects from the currently connected device.
  * @param self device handle
  * @return response code
  */
-int exword_close(exword_t *self)
+int exword_disconnect(exword_t *self)
 {
-	if (self) {
+	if (exword_is_connected(self)) {
+		self->status |= 0x80;
+		if (!(self->status & 0x07))
+			self->status |= EXWORD_DISCONNECT_NORMAL;
 		obex_object_t *obj = obex_object_new(self->obex_ctx, OBEX_CMD_DISCONNECT);
 		if (obj == NULL)
 			return EXWORD_ERROR_NO_MEM;
@@ -432,8 +472,6 @@ int exword_close(exword_t *self)
 		obex_object_delete(self->obex_ctx, obj);
 		libusb_free_transfer(self->int_urb);
 		obex_cleanup(self->obex_ctx);
-		free(self->cb_filename);
-		free(self);
 	}
 	return EXWORD_SUCCESS;
 }
@@ -489,10 +527,17 @@ void exword_register_disconnect_callback(exword_t *self, disconnect_cb disconnec
  * sent to the application.
  * @param self device handle
  */
-void exword_handle_disconnect_event(exword_t *self)
+void exword_poll_disconnect(exword_t *self)
 {
 	struct timeval tv = {0, 0};
-	libusb_handle_events_timeout(self->obex_ctx->usb_ctx, &tv);
+	if (exword_is_connected(self)) {
+		libusb_handle_events_timeout(self->obex_ctx->usb_ctx, &tv);
+	}
+	if (self->status & 0x07) {
+		send_disconnect_event(self, (self->status & 0x07));
+		exword_disconnect(self);
+		self->status &= ~0x07;
+	}
 }
 
 
@@ -510,6 +555,13 @@ int exword_send_file(exword_t *self, char* filename, char *buffer, int len)
 	int length, rsp;
 	obex_headerdata_t hv;
 	char *unicode;
+
+	if (self->status & 0x06)
+		return EXWORD_ERROR_INTERNAL;
+
+	if (!exword_is_connected(self))
+		return EXWORD_ERROR_NOT_FOUND;
+
 	unicode = convert_from_locale("UTF-16BE", &unicode, &length, filename, strlen(filename) + 1);
 	if (unicode == NULL)
 		return EXWORD_ERROR_OTHER;
@@ -549,6 +601,13 @@ int exword_get_file(exword_t *self, char* filename, char **buffer, int *len)
 	char *unicode;
 	*len = 0;
 	*buffer = NULL;
+
+	if (self->status & 0x06)
+		return EXWORD_ERROR_INTERNAL;
+
+	if (!exword_is_connected(self))
+		return EXWORD_ERROR_NOT_FOUND;
+
 	unicode = convert_from_locale("UTF-16BE", &unicode, &length, filename, strlen(filename) + 1);
 	if (unicode == NULL)
 		return EXWORD_ERROR_OTHER;
@@ -591,6 +650,13 @@ int exword_remove_file(exword_t *self, char* filename, int convert_to_unicode)
 	int rsp, length;
 	obex_headerdata_t hv;
 	char *unicode = NULL;
+
+	if (self->status & 0x06)
+		return EXWORD_ERROR_INTERNAL;
+
+	if (!exword_is_connected(self))
+		return EXWORD_ERROR_NOT_FOUND;
+
 	length = strlen(filename) + 1;
 	if (convert_to_unicode) {
 		unicode = convert_from_locale("UTF-16BE", &unicode, &length, filename, length);
@@ -624,6 +690,13 @@ int exword_sd_format(exword_t *self)
 {
 	int rsp, len;
 	obex_headerdata_t hv;
+
+	if (self->status & 0x06)
+		return EXWORD_ERROR_INTERNAL;
+
+	if (!exword_is_connected(self))
+		return EXWORD_ERROR_NOT_FOUND;
+
 	obex_object_t *obj = obex_object_new(self->obex_ctx, OBEX_CMD_PUT);
 	if (obj == NULL) {
 		return EXWORD_ERROR_NO_MEM;
@@ -655,6 +728,13 @@ int exword_setpath(exword_t *self, uint8_t *path, uint8_t mkdir)
 	uint8_t non_hdr[2] = {(mkdir ? 0 : 2), 0x00};
 	obex_headerdata_t hv;
 	char *unicode;
+
+	if (self->status & 0x06)
+		return EXWORD_ERROR_INTERNAL;
+
+	if (!exword_is_connected(self))
+		return EXWORD_ERROR_NOT_FOUND;
+
 	unicode = convert_from_locale("UTF-16BE", &unicode, &len, path, strlen(path) + 1);
 	if (unicode == NULL)
 		return EXWORD_ERROR_OTHER;
@@ -691,6 +771,13 @@ int exword_get_model(exword_t *self, exword_model_t * model)
 	const uint8_t *ptr;
 	uint8_t hi;
 	uint32_t hv_size;
+
+	if (self->status & 0x06)
+		return EXWORD_ERROR_INTERNAL;
+
+	if (!exword_is_connected(self))
+		return EXWORD_ERROR_NOT_FOUND;
+
 	obex_object_t *obj = obex_object_new(self->obex_ctx, OBEX_CMD_GET);
 	if (obj == NULL)
 		return EXWORD_ERROR_NO_MEM;
@@ -741,6 +828,13 @@ int exword_get_capacity(exword_t *self, exword_capacity_t *cap)
 	obex_headerdata_t hv;
 	uint8_t hi;
 	uint32_t hv_size;
+
+	if (self->status & 0x06)
+		return EXWORD_ERROR_INTERNAL;
+
+	if (!exword_is_connected(self))
+		return EXWORD_ERROR_NOT_FOUND;
+
 	obex_object_t *obj = obex_object_new(self->obex_ctx, OBEX_CMD_GET);
 	if (obj == NULL)
 		return EXWORD_ERROR_NO_MEM;
@@ -779,6 +873,13 @@ int exword_list(exword_t *self, exword_dirent_t **entries, uint16_t *count)
 	uint32_t hv_size;
 	*count = 0;
 	*entries = NULL;
+
+	if (self->status & 0x06)
+		return EXWORD_ERROR_INTERNAL;
+
+	if (!exword_is_connected(self))
+		return EXWORD_ERROR_NOT_FOUND;
+
 	obex_object_t *obj = obex_object_new(self->obex_ctx, OBEX_CMD_GET);
 	if (obj == NULL)
 		return EXWORD_ERROR_NO_MEM;
@@ -833,6 +934,13 @@ int exword_userid(exword_t *self, exword_userid_t id)
 {
 	int rsp;
 	obex_headerdata_t hv;
+
+	if (self->status & 0x06)
+		return EXWORD_ERROR_INTERNAL;
+
+	if (!exword_is_connected(self))
+		return EXWORD_ERROR_NOT_FOUND;
+
 	obex_object_t *obj = obex_object_new(self->obex_ctx, OBEX_CMD_PUT);
 	if (obj == NULL)
 		return EXWORD_ERROR_NO_MEM;
@@ -861,6 +969,13 @@ int exword_cryptkey(exword_t *self, exword_cryptkey_t *key)
 	obex_headerdata_t hv;
 	uint8_t hi;
 	uint32_t hv_size;
+
+	if (self->status & 0x06)
+		return EXWORD_ERROR_INTERNAL;
+
+	if (!exword_is_connected(self))
+		return EXWORD_ERROR_NOT_FOUND;
+
 	obex_object_t *obj = obex_object_new(self->obex_ctx, OBEX_CMD_GET);
 	if (obj == NULL)
 		return EXWORD_ERROR_NO_MEM;
@@ -897,6 +1012,13 @@ int exword_cname(exword_t *self, char *name, char* dir)
 	obex_headerdata_t hv;
 	int dir_length, name_length;
 	char *buffer;
+
+	if (self->status & 0x06)
+		return EXWORD_ERROR_INTERNAL;
+
+	if (!exword_is_connected(self))
+		return EXWORD_ERROR_NOT_FOUND;
+
 	obex_object_t *obj = obex_object_new(self->obex_ctx, OBEX_CMD_PUT);
 	if (obj == NULL)
 		return EXWORD_ERROR_NO_MEM;
@@ -929,6 +1051,13 @@ int exword_unlock(exword_t *self)
 {
 	int rsp;
 	obex_headerdata_t hv;
+
+	if (self->status & 0x06)
+		return EXWORD_ERROR_INTERNAL;
+
+	if (!exword_is_connected(self))
+		return EXWORD_ERROR_NOT_FOUND;
+
 	obex_object_t *obj = obex_object_new(self->obex_ctx, OBEX_CMD_PUT);
 	if (obj == NULL)
 		return EXWORD_ERROR_NO_MEM;
@@ -953,6 +1082,13 @@ int exword_lock(exword_t *self)
 {
 	int rsp;
 	obex_headerdata_t hv;
+
+	if (self->status & 0x06)
+		return EXWORD_ERROR_INTERNAL;
+
+	if (!exword_is_connected(self))
+		return EXWORD_ERROR_NOT_FOUND;
+
 	obex_object_t *obj = obex_object_new(self->obex_ctx, OBEX_CMD_PUT);
 	if (obj == NULL)
 		return EXWORD_ERROR_NO_MEM;
@@ -978,6 +1114,13 @@ int exword_authchallenge(exword_t *self, exword_authchallenge_t challenge)
 {
 	int rsp;
 	obex_headerdata_t hv;
+
+	if (self->status & 0x06)
+		return EXWORD_ERROR_INTERNAL;
+
+	if (!exword_is_connected(self))
+		return EXWORD_ERROR_NOT_FOUND;
+
 	obex_object_t *obj = obex_object_new(self->obex_ctx, OBEX_CMD_PUT);
 	if (obj == NULL)
 		return EXWORD_ERROR_NO_MEM;
@@ -1006,6 +1149,13 @@ int exword_authinfo(exword_t *self, exword_authinfo_t *info)
 	obex_headerdata_t hv;
 	uint8_t hi;
 	uint32_t hv_size;
+
+	if (self->status & 0x06)
+		return EXWORD_ERROR_INTERNAL;
+
+	if (!exword_is_connected(self))
+		return EXWORD_ERROR_NOT_FOUND;
+
 	obex_object_t *obj = obex_object_new(self->obex_ctx, OBEX_CMD_GET);
 	if (obj == NULL)
 		return EXWORD_ERROR_NO_MEM;

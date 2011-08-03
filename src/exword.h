@@ -43,7 +43,7 @@ typedef struct exword_t exword_t;
 
 /** @ingroup device
  * EX-word regions.
- * One of these regions must be specified when calling \ref exword_open.
+ * One of these regions must be specified when calling \ref exword_connect.
  */
 enum exword_region {
 	/** Japanese Region */
@@ -70,7 +70,7 @@ enum exword_region {
 
 /** @ingroup device
  * EX-word modes.
- * One of these modes must be specified when calling \ref exword_open.
+ * One of these modes must be specified when calling \ref exword_connect.
  */
 enum exword_mode {
 	/** This mode is used to install and remove add-on dictionaries.*/
@@ -137,10 +137,10 @@ enum exword_disconnect {
 	EXWORD_DISCONNECT_NORMAL = 1,
 
 	/** Disconnect due to cable being unplugged */
-	EXWORD_DISCONNECT_UNPLUGGED,
+	EXWORD_DISCONNECT_UNPLUGGED = 2,
 
 	/** Disconnect due to internal server error */
-	EXWORD_DISCONNECT_ERROR,
+	EXWORD_DISCONNECT_ERROR = 4,
 };
 
 
@@ -270,13 +270,17 @@ void get_xor_key(char *key, long size, char *xorkey);
 void crypt_data(char *data, int size, char *key);
 
 char * exword_error_to_string(int code);
+
+exword_t * exword_init();
+void exword_deinit(exword_t *self);
+int exword_is_connected(exword_t *self);
 void exword_set_debug(exword_t *self, int level);
 void exword_register_transfer_callbacks(exword_t *self, file_cb get, file_cb put, void *userdata);
 void exword_register_disconnect_callback(exword_t *self, disconnect_cb disconnect, void *userdata);
-void exword_handle_disconnect_event(exword_t *self);
-void exword_free_list(exword_dirent_t *entries);
-exword_t * exword_open(uint16_t options);
-int exword_close(exword_t *self);
+void exword_poll_disconnect(exword_t *self);
+
+int exword_connect(exword_t *self, uint16_t options);
+int exword_disconnect(exword_t *self);
 int exword_send_file(exword_t *self, char* filename, char *buffer, int len);
 int exword_get_file(exword_t *self, char* filename, char **buffer, int *len);
 int exword_remove_file(exword_t *self, char* filename, int convert_to_unicode);
@@ -285,6 +289,7 @@ int exword_get_capacity(exword_t *self, exword_capacity_t *cap);
 int exword_sd_format(exword_t *self);
 int exword_setpath(exword_t *self, uint8_t *path, uint8_t mkdir);
 int exword_list(exword_t *self, exword_dirent_t **entries, uint16_t *count);
+void exword_free_list(exword_dirent_t *entries);
 int exword_userid(exword_t *self, exword_userid_t id);
 int exword_cryptkey(exword_t *self, exword_cryptkey_t *key);
 int exword_cname(exword_t *self, char *name, char* dir);

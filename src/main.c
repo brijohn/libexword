@@ -199,7 +199,7 @@ void disconnect_notify(int reason, void *data)
 		fprintf(stderr, "\nDevice was unplugged\n");
 		s->disconnect_event = 1;
 	} else if (reason == EXWORD_DISCONNECT_ERROR) {
-		fprintf(stderr, "Internal Server Error\n");
+		fprintf(stderr, "\nInternal Server Error\n");
 		s->disconnect_event = 1;
 	}
 }
@@ -314,12 +314,9 @@ void connect(struct state *s)
 	}
 	if (!error) {
 		printf("connecting to device...");
-		s->device = exword_open(options);
-		if (s->device == NULL) {
+		if (exword_connect(s->device, options) != EXWORD_SUCCESS) {
 			printf("device not found\n");
 		} else {
-			exword_register_disconnect_callback(s->device, disconnect_notify, s);
-			exword_set_debug(s->device, s->debug);
 			if (exword_setpath(s->device, "", 0) == EXWORD_SUCCESS) {
 				if (exword_list(s->device, &entries, &count) == EXWORD_SUCCESS) {
 					for (i = 0; i < count; i++) {
@@ -347,10 +344,9 @@ void disconnect(struct state *s)
 		printf("disconnecting...done\n");
 	else
 		rl_stuff_char('\n');
-	exword_close(s->device);
+	exword_disconnect(s->device);
 	free(s->cwd);
 	s->cwd = NULL;
-	s->device = NULL;
 	s->connected = 0;
 	s->authenticated = 0;
 	s->disconnect_event = 0;
@@ -738,7 +734,7 @@ char * create_prompt(char *cwd) {
 int do_events()
 {
 	if (st->device) {
-		exword_handle_disconnect_event(st->device);
+		exword_poll_disconnect(st->device);
 		if (st->disconnect_event)
 			disconnect(st);
 	}
@@ -753,6 +749,9 @@ void interactive(struct state *s)
 	s->running = 1;
 	INIT_LIST_HEAD(&(s->cmd_list));
 	load_history();
+	s->device = exword_init();
+	exword_register_disconnect_callback(s->device, disconnect_notify, s);
+	exword_set_debug(s->device, s->debug);
 	rl_set_keyboard_input_timeout(10000);
 	rl_event_hook = do_events;
 	st = s;
@@ -771,6 +770,7 @@ void interactive(struct state *s)
 	free(line);
 	free(prompt);
 	store_history();
+	exword_deinit(s->device);
 }
 
 int main(int argc, const char** argv)
