@@ -676,8 +676,7 @@ void set(struct state *s)
 				printf("Value should be between 0 and 5\n");
 			} else {
 				s->debug = debug;
-				if (s->connected)
-					exword_set_debug(s->device, s->debug);
+				exword_set_debug(s->device, s->debug);
 			}
 		}
 	} else if (strcmp(opt, "mkdir") == 0) {

@@ -77,6 +77,8 @@ static const char AuthInfo[] = {0,'_',0,'A', 0, 'u', 0, 't', 0, 'h', 0, 'I', 0, 
 struct exword_t {
 	obex_t *obex_ctx;
 
+
+	int debug;
 	int status;
 
 	file_cb put_file_cb;
@@ -421,6 +423,8 @@ int exword_connect(exword_t *self, uint16_t options)
 	if (self->obex_ctx == NULL)
 		goto free_transfer;
 
+	self->obex_ctx->debug = self->debug;
+
 	obex_set_connect_info(self->obex_ctx, ver, locale);
 	obex_register_callback(self->obex_ctx, exword_handle_callbacks, self);
 
@@ -446,6 +450,7 @@ int exword_connect(exword_t *self, uint16_t options)
 
 free_context:
 	obex_cleanup(self->obex_ctx);
+	self->obex_ctx = NULL;
 free_transfer:
 	libusb_free_transfer(self->int_urb);
 error:
@@ -472,6 +477,8 @@ int exword_disconnect(exword_t *self)
 		obex_object_delete(self->obex_ctx, obj);
 		libusb_free_transfer(self->int_urb);
 		obex_cleanup(self->obex_ctx);
+		self->obex_ctx = NULL;
+
 	}
 	return EXWORD_SUCCESS;
 }
@@ -484,7 +491,9 @@ int exword_disconnect(exword_t *self)
  */
 void exword_set_debug(exword_t *self, int level)
 {
-	self->obex_ctx->debug = level;
+	self->debug = level;
+	if (self->obex_ctx)
+		self->obex_ctx->debug = self->debug;
 }
 
 /** @ingroup misc
