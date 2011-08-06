@@ -527,7 +527,8 @@ int obex_object_receive(obex_t *self, obex_object_t *object)
 obex_t * obex_init(uint16_t vid, uint16_t pid)
 {
 	obex_t *self;
-	int size;
+	libusb_device **list;
+	int i, size = 0;
 	self = malloc(sizeof(obex_t));
 	if (self == NULL)
 		return NULL;
@@ -536,11 +537,27 @@ obex_t * obex_init(uint16_t vid, uint16_t pid)
 	if (libusb_init(&self->usb_ctx) < 0)
 		goto out_err;
 
-	self->usb_dev = libusb_open_device_with_vid_pid(self->usb_ctx, vid, pid);
-	if (self->usb_dev == NULL)
+	size = libusb_get_device_list(self->usb_ctx, &list);
+	if (size < 0)
 		goto out_err;
 
-	if (obex_claim_interface(self) < 0)
+	for (i = 0; i < size; i++) {
+		struct libusb_device_descriptor desc;
+		libusb_device *device = list[i];
+		if (libusb_get_device_descriptor(device, &desc) < 0)
+			continue;
+		if (desc.idVendor != vid || desc.idProduct != pid)
+			continue;
+		if (libusb_open(device, &self->usb_dev) < 0)
+			continue;
+		if (obex_claim_interface(self) == 0)
+			break;
+		libusb_close(self->usb_dev);
+		self->usb_dev = NULL;
+	}
+
+	libusb_free_device_list(list, 1);
+	if (i >= size)
 		goto out_err;
 
 	self->seq_num = 0;
