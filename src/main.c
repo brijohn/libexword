@@ -33,6 +33,7 @@
 struct state {
 	exword_t *device;
 	int mode;
+	int region;
 	int running;
 	int connected;
 	int debug;
@@ -331,6 +332,7 @@ void connect(struct state *s)
 			_setpath(s, "\\_INTERNAL_00", "/", 2);
 			s->connected = 1;
 			s->mode = (options & 0xff00);
+			s->region = (options & 0x00ff);
 			printf("done\n");
 		}
 	}
@@ -497,10 +499,10 @@ void list(struct state *s)
 }
 
 int dict_list_remote(exword_t *device, char *root);
-int dict_list_local();
+int dict_list_local(int region);
 int dict_remove(exword_t *device, char *root, char *id);
-int dict_decrypt(exword_t *device, char *root, char *id);
-int dict_install(exword_t *device, char *root, char *id);
+int dict_decrypt(exword_t *device, int region, char *root, char *id);
+int dict_install(exword_t *device, int region, char *root, char *id);
 int dict_auth(exword_t *device, char *user, char *auth);
 
 void dict(struct state *s)
@@ -531,7 +533,7 @@ void dict(struct state *s)
 			if (id == NULL || strcmp(id, "remote") == 0)
 				dict_list_remote(s->device, root);
 			else if (strcmp(id, "local") == 0)
-				dict_list_local();
+				dict_list_local(s->region);
 			else
 				printf("Unknown parameter passed to list.\n");
 		} else if (strcmp(subfunc, "reset") == 0) {
@@ -603,9 +605,9 @@ void dict(struct state *s)
 					return;
 				}
 				if (strcmp(subfunc, "decrypt") == 0)
-					dict_decrypt(s->device, root, id);
+					dict_decrypt(s->device, s->region, root, id);
 				else if (strcmp(subfunc, "install") == 0)
-					dict_install(s->device, root, id);
+					dict_install(s->device, s->region, root, id);
 				else if (strcmp(subfunc, "remove") == 0)
 					dict_remove(s->device, root, id);
 			}

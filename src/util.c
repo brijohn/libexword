@@ -28,6 +28,8 @@
 #include <stdarg.h>
 #include <errno.h>
 
+#include "exword.h"
+
 #if defined(__MINGW32__)
 # include <shlwapi.h>
 # include <shlobj.h>
@@ -116,6 +118,28 @@ const char * get_data_dir()
 	return data_dir;
 }
 
+
+char * region_id2str(int id)
+{
+	switch(id) {
+	case EXWORD_REGION_JA:
+		return "ja";
+	case EXWORD_REGION_CN:
+		return "cn";
+	case EXWORD_REGION_KR:
+		return "kr";
+	case EXWORD_REGION_DE:
+		return "de";
+	case EXWORD_REGION_ES:
+		return "es";
+	case EXWORD_REGION_FR:
+		return "fr";
+	case EXWORD_REGION_RU:
+		return "ru";
+	default:
+		return NULL;
+	}
+}
 
 char * mkpath(const char* separator, const char *base, ...)
 {

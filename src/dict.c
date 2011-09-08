@@ -252,7 +252,7 @@ int _load_user_key(char *name, char *key)
 	return 0;
 }
 
-int dict_decrypt(exword_t *device, char *root, char *id)
+int dict_decrypt(exword_t *device, int region, char *root, char *id)
 {
 	int i, rsp;
 	char *ext;
@@ -274,7 +274,7 @@ int dict_decrypt(exword_t *device, char *root, char *id)
 		printf("Dictionary %s does not exist\n", id);
 		return 0;
 	}
-	dir = mkpath(PATH_SEP, get_data_dir(), id, NULL);
+	dir = mkpath(PATH_SEP, get_data_dir(), region_id2str(region), id, NULL);
 	if (stat(dir, &buf) == 0 && S_ISDIR(buf.st_mode)) {
 		printf("Local version of dictionary already exists\n");
 		free(dir);
@@ -384,20 +384,23 @@ int dict_list_remote(exword_t *device, char* root)
 	return 1;
 }
 
-int dict_list_local()
+int dict_list_local(int region)
 {
 	DIR *dir;
-	char *name, *path;
+	char *name, *path, *d;
 	char *locale;
 	int len, i = 0;
 	struct dirent *entry;
-	dir = opendir(get_data_dir());
-	if (!dir)
+	d = mkpath(PATH_SEP, get_data_dir(), region_id2str(region), NULL);
+	dir = opendir(d);
+	if (!dir) {
+		free(d);
 		return 0;
+	}
 	while ((entry = readdir(dir)) != NULL) {
 		if (entry->d_name[0] == '.')
 			continue;
-		path = mkpath(PATH_SEP, get_data_dir(), entry->d_name, NULL);
+		path = mkpath(PATH_SEP, d, entry->d_name, NULL);
 		name = _get_name(path);
 		if (name) {
 			locale =  convert_to_locale("SHIFT_JIS", &locale, &len, name, strlen(name) + 1);
@@ -409,6 +412,7 @@ int dict_list_local()
 		free(path);
 	}
 	closedir(dir);
+	free(d);
 	return 1;
 }
 
@@ -440,7 +444,7 @@ int dict_remove(exword_t *device, char *root, char *id)
 	return (rsp == EXWORD_SUCCESS);
 }
 
-int dict_install(exword_t *device, char *root, char *id)
+int dict_install(exword_t *device, int region, char *root, char *id)
 {
 	DIR *dhandle;
 	struct dirent *entry;
@@ -463,7 +467,7 @@ int dict_install(exword_t *device, char *root, char *id)
 		printf("Dictionary with id %s already installed.\n", id);
 		return 0;
 	}
-	dir = mkpath(PATH_SEP, get_data_dir(), id, NULL);
+	dir = mkpath(PATH_SEP, get_data_dir(), region_id2str(region), id, NULL);
 	dhandle = opendir(dir);
 	if (dhandle == NULL) {
 		printf("Can find dictionary directory %s.\n", id);
