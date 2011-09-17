@@ -1,6 +1,6 @@
 /* exword - program for transfering files to Casio-EX-Word dictionaries
  *
- * Copyright (C) 2010 - Brian Johnson <brijohn@gmail.com>
+ * Copyright (C) 2010, 2011 - Brian Johnson <brijohn@gmail.com>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -26,38 +26,8 @@
 #include <readline/readline.h>
 #include <readline/history.h>
 
-#include "exword.h"
+#include "main.h"
 #include "util.h"
-#include "list.h"
-
-struct state {
-	exword_t *device;
-	int mode;
-	int region;
-	int running;
-	int connected;
-	int debug;
-	int mkdir;
-	int authenticated;
-	int sd_inserted;
-	int disconnect_event;
-	char *cwd;
-	struct list_head cmd_list;
-};
-
-typedef void (*cmd_func)(struct state *);
-
-struct cmd_arg {
-	char *arg;
-	struct list_head queue;
-};
-
-struct command {
-	char *cmd_str;
-	cmd_func ptr;
-	char *help_short;
-	char *help_long;
-};
 
 void quit(struct state *s);
 void help(struct state *s);
@@ -72,7 +42,7 @@ void delete(struct state *s);
 void send(struct state *s);
 void get(struct state *s);
 void setpath(struct state *s);
-void dict(struct state *s);
+void content(struct state *s);
 
 static struct state *st = NULL;
 
@@ -83,50 +53,62 @@ struct command commands[] = {
 	"Mode can be one of the following values:\n"
 	"library - connect as CASIO Library (default)\n"
 	"text    - connect as Textloader\n"
-	"cd      - connect as CDLoader\n"},
+	"cd      - connect as CDLoader\n", 0x700},
 {"disconnect", disconnect, "disconnect\t\t- disconnect from dictionary\n",
-	"Disconnects from device.\n"},
+	"Disconnects from device.\n", 0x700},
 {"model", model, "model\t\t\t- display model information\n",
-	"Displays model information of device.\n"},
+	"Displays model information of device.\n", 0x700},
 {"capacity", capacity, "capacity\t\t- display medium capacity\n",
-	"Displays capacity of current storage medium.\n"},
+	"Displays capacity of current storage medium.\n", 0x700},
 {"format", format, "format\t\t\t- format SD card\n",
-	"Formats currently inserted SD Card.\n"},
+	"Formats currently inserted SD Card.\n", 0x700},
 {"list", list, "list\t\t\t- list files\n",
 	"Lists files and directories under current path.\n\n"
 	"Directories are enclosed in <>.\n"
-	"Files or directories beginning with * were returned as unicode.\n"},
+	"Files or directories beginning with * were returned as unicode.\n", 0x700},
 {"delete", delete, "delete <filename>\t- delete a file\n",
-	"Deletes a file from dicionary.\n"},
+	"Deletes a file from dicionary.\n", 0x700},
 {"send", send, "send <filename>\t\t- upload a file\n",
-	"Uploads a file to dicionary.\n"},
+	"Uploads a file to dicionary.\n", 0x700},
 {"get", get, "get <filename>\t\t- download a file\n",
-	"Downloads a file from dicionary.\n"},
+	"Downloads a file from dicionary.\n", 0x700},
 {"setpath", setpath, "setpath <path>\t\t- changes directory on dictionary\n",
 	"Changes to the the specified path.\n\n"
 	"<path> is in the form of <sd|mem://<path>\n"
-	"Example: mem:/// - sets path to root of internal memory\n"},
-{"dict", dict, "dict <sub-function>\t- add-on dictionary commands\n",
+	"Example: mem:/// - sets path to root of internal memory\n", 0x700},
+{"cd",  content, "cd <sub-function>\t- audio cd commands\n",
+	"This command allows manipulation of installed audio cds. It uses\n"
+	"the storage medium of your current path as the storage device to\n"
+	"operate on. The reset sub-function WILL delete all installed\n"
+	"dictionaries. DP4+ Only\n\n"
+	"Sub functions:\n"
+	"reset <user>\t    - resets authentication info\n"
+	"auth <user> [key]   - authenticate to dictionary\n"
+	"list [local|remote] - list installed audio cds\n"
+	"decrypt <id>\t    - decrypts specified audio cd\n"
+	"remove  <id>\t    - removes specified audio cd\n"
+	"install <id>\t    - installs specified audio cd\n", 0x400},
+{"dict", content, "dict <sub-function>\t- add-on dictionary commands\n",
 	"This command allows manipulation of add-on dictionaries. It uses\n"
 	"the storage medium of your current path as the storage device to\n"
 	"operate on. The reset sub-function WILL delete all installed\n"
 	"dictionaries.\n\n"
 	"Sub functions:\n"
 	"reset <user>\t    - resets authentication info\n"
-	"auth <user> <key>   - authenticate to dictionary\n"
+	"auth <user> [key]   - authenticate to dictionary\n"
 	"list [local|remote] - list installed add-on dictionaries\n"
 	"decrypt <id>\t    - decrypts specified add-on dictionary\n"
 	"remove  <id>\t    - removes specified add-on dictionary\n"
-	"install <id>\t    - installs specified add-on dictionary\n"},
+	"install <id>\t    - installs specified add-on dictionary\n", 0x100},
 {"set", set, "set <option> [value]\t- sets program options\n",
 	"Sets <option> to [value], if no value is specified will display current value.\n\n"
 	"Available options:\n"
 	"debug <level>  - sets debug level (0-5)\n"
-	"mkdir <on|off> - specifies whether setpath should create directories\n"},
+	"mkdir <on|off> - specifies whether setpath should create directories\n", 0x700},
 {"exit", quit, "exit\t\t\t- exits program\n",
-	"Exits program and disconnects from device.\n"},
-{"help", help, NULL, NULL},
-{NULL, NULL, NULL, NULL}
+	"Exits program and disconnects from device.\n", 0x700},
+{"help", help, NULL, NULL, 0x700},
+{NULL, NULL, NULL, NULL, 0}
 };
 
 void load_history()
@@ -349,6 +331,8 @@ void disconnect(struct state *s)
 	exword_disconnect(s->device);
 	free(s->cwd);
 	s->cwd = NULL;
+	s->mode = 0;
+	s->region = 0;
 	s->connected = 0;
 	s->authenticated = 0;
 	s->disconnect_event = 0;
@@ -498,30 +482,22 @@ void list(struct state *s)
 	printf("%s\n", exword_error_to_string(rsp));
 }
 
-int dict_list_remote(exword_t *device, char *root);
-int dict_list_local(int region);
-int dict_remove(exword_t *device, char *root, char *id);
-int dict_decrypt(exword_t *device, int region, char *root, char *id);
-int dict_install(exword_t *device, int region, char *root, char *id);
-int dict_auth(exword_t *device, char *user, char *auth);
-
-void dict(struct state *s)
+void content(struct state *s)
 {
 	int i;
 	char val;
-	char root[15];
+	char root[25];
 	char authkey[41];
 	char *subfunc, *id, *user;
 	if (!s->connected)
 		return;
-	if (s->mode != EXWORD_MODE_LIBRARY) {
-		printf("Only available in library mode.\n");
-		return;
-	}
 	if (!memcmp(s->cwd, "\\_SD_00", 7))
 		strcpy(root, "\\_SD_00");
 	else
 		strcpy(root, "\\_INTERNAL_00");
+	if (s->mode == EXWORD_MODE_CD) {
+		strcat(root, "\\SOUND");
+	}
 	if (peek_arg(&(s->cmd_list)) == NULL) {
 		printf("No sub-function specified.\n");
 	} else {
@@ -531,9 +507,9 @@ void dict(struct state *s)
 		if (strcmp(subfunc, "list") == 0) {
 			id = peek_arg(&(s->cmd_list));
 			if (id == NULL || strcmp(id, "remote") == 0)
-				dict_list_remote(s->device, root);
+				content_list_remote(s, root);
 			else if (strcmp(id, "local") == 0)
-				dict_list_local(s->region);
+				content_list_local(s);
 			else
 				printf("Unknown parameter passed to list.\n");
 		} else if (strcmp(subfunc, "reset") == 0) {
@@ -541,7 +517,7 @@ void dict(struct state *s)
 				printf("No username specified.\n");
 			} else {
 				user = peek_arg(&(s->cmd_list));
-				if (dict_reset(s->device, user))
+				if (content_reset(s, user))
 					s->authenticated = 1;
 				else
 					s->authenticated = 0;
@@ -554,7 +530,7 @@ void dict(struct state *s)
 				strcpy(user, peek_arg(&(s->cmd_list)));
 				dequeue_arg(&(s->cmd_list));
 				if (peek_arg(&(s->cmd_list)) == NULL) {
-					if (dict_auth(s->device, user, NULL)) {
+					if (content_auth(s, user, NULL)) {
 						s->authenticated = 1;
 						printf("Authentication sucessful.\n");
 					} else {
@@ -581,7 +557,7 @@ void dict(struct state *s)
 								val |= (authkey[i + 1] - 48);
 							authkey[i / 2] = val;
 						}
-						if (dict_auth(s->device, user, authkey)) {
+						if (content_auth(s, user, authkey)) {
 							s->authenticated = 1;
 							printf("Authentication sucessful.\n");
 						} else {
@@ -605,11 +581,11 @@ void dict(struct state *s)
 					return;
 				}
 				if (strcmp(subfunc, "decrypt") == 0)
-					dict_decrypt(s->device, s->region, root, id);
+					content_decrypt(s, root, id);
 				else if (strcmp(subfunc, "install") == 0)
-					dict_install(s->device, s->region, root, id);
+					content_install(s, root, id);
 				else if (strcmp(subfunc, "remove") == 0)
-					dict_remove(s->device, root, id);
+					content_remove(s, root, id);
 			}
 		} else {
 			printf("Unknown subfunction\n");
@@ -710,8 +686,12 @@ void process_command(struct state *s)
 	char * cmd = peek_arg(&(s->cmd_list));
 	for (i = 0; commands[i].cmd_str != NULL; i++) {
 		if (strcmp(cmd, commands[i].cmd_str) == 0) {
-			dequeue_arg(&(s->cmd_list));
-			commands[i].ptr(s);
+			if (commands[i].mode & s->mode || s->mode == 0) {
+				dequeue_arg(&(s->cmd_list));
+				commands[i].ptr(s);
+			} else {
+				printf("This option not supported in %s mode\n", mode_id2str(s->mode));
+			}
 			break;
 		}
 	}

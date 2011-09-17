@@ -1,6 +1,6 @@
-/* dict.c - code for removing/installing and dumping dictionaries
+/* content.c - code for removing/installing and dumping content (add-ons/cd audio)
  *
- * Copyright (C) 2010 - Brian Johnson <brijohn@gmail.com>
+ * Copyright (C) 2010, 2011 - Brian Johnson <brijohn@gmail.com>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -27,14 +27,8 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 
-#include "exword.h"
+#include "main.h"
 #include "util.h"
-
-typedef struct {
-	char id[32];
-	char key[16];
-	char name[132];
-} admini_t;
 
 static char key1[16] =
 	"\x42\x72\xb7\xb5\x9e\x30\x83\x45\xc3\xb5\x41\x53\x71\xc4\x95\x00";
@@ -47,6 +41,7 @@ char *admini_list[] = {
 	"adminies.inf",
 	"adminifr.inf",
 	"adminiru.inf",
+	"sound.inf",
 	NULL
 };
 
@@ -85,12 +80,12 @@ int _find(exword_t *device, char *root, char *id, admini_t *ini)
 	return 1;
 }
 
-int _upload_file(exword_t *device, char *id, char* name, char *key)
+int _upload_file(exword_t *device, char *dir, char* name, char *key)
 {
 	int length, rsp;
 	char *ext, *buffer;
 	char *filename;
-	filename = mkpath(PATH_SEP, id, name, NULL);
+	filename = mkpath(PATH_SEP, dir, name, NULL);
 	rsp = read_file(filename, &buffer, &length);
 	if (rsp != 0) {
 		free(filename);
@@ -111,12 +106,12 @@ int _upload_file(exword_t *device, char *id, char* name, char *key)
 	return (rsp == EXWORD_SUCCESS);
 }
 
-int _download_file(exword_t *device, char *id, char* name, char *key)
+int _download_file(exword_t *device, char *dir, char* name, char *key)
 {
 	char *filename;
 	int length, rsp;
 	char *buffer, *ext;
-	filename = mkpath(PATH_SEP, id, name, NULL);
+	filename = mkpath(PATH_SEP, dir, name, NULL);
 	ext = strrchr(filename, '.');
 	rsp = exword_get_file(device, name, &buffer, &length);
 	if (rsp != EXWORD_SUCCESS) {
@@ -137,7 +132,7 @@ int _download_file(exword_t *device, char *id, char* name, char *key)
 	return (rsp == EXWORD_SUCCESS);
 }
 
-int _get_size(char *id)
+int _get_size(char *dir)
 {
 	DIR *dhandle;
 	struct stat buf;
@@ -145,11 +140,11 @@ int _get_size(char *id)
 	int size = 0;
 	int fd;
 	char *filename;
-	dhandle = opendir(id);
+	dhandle = opendir(dir);
 	if (dhandle == NULL)
 		return -1;
 	while ((entry = readdir(dhandle)) != NULL) {
-		filename = mkpath(PATH_SEP, id, entry->d_name, NULL);
+		filename = mkpath(PATH_SEP, dir, entry->d_name, NULL);
 		fd = open(filename, O_RDONLY);
 		if (fd >= 0) {
 			if (fstat(fd, &buf) == 0 && S_ISREG(buf.st_mode))
@@ -162,14 +157,37 @@ int _get_size(char *id)
 	return size;
 }
 
-char * _get_name(char *id)
+char * _get_cd_name(char *dir)
+{
+	int length;
+	char *temp;
+	char *name = NULL;
+	char *filename;
+	char *buffer;
+	filename = mkpath(PATH_SEP, dir, "playlist.htm", NULL);
+	if (read_file(filename, &buffer, &length) != 0) {
+		free(filename);
+		return NULL;
+	}
+	temp = strchr(buffer, 0x0d);
+	if (temp) {
+		*temp = 0x00;
+		name = xmalloc(strlen(buffer) + 1);
+		strcpy(name, buffer);
+	}
+	free(buffer);
+	free(filename);
+	return name;
+}
+
+char * _get_dict_name(char *dir)
 {
 	int length, len;
 	char *name = NULL;
 	char *filename;
 	char *buffer, *start, *end;
 	struct stat buf;
-	filename = mkpath(PATH_SEP, id, "diction.htm", NULL);
+	filename = mkpath(PATH_SEP, dir, "diction.htm", NULL);
 	if (read_file(filename, &buffer, &length) != 0) {
 		free(filename);
 		return NULL;
@@ -252,7 +270,7 @@ int _load_user_key(char *name, char *key)
 	return 0;
 }
 
-int dict_decrypt(exword_t *device, int region, char *root, char *id)
+int content_decrypt(struct state *s, char *root, char *id)
 {
 	int i, rsp;
 	char *ext;
@@ -263,30 +281,34 @@ int dict_decrypt(exword_t *device, int region, char *root, char *id)
 	admini_t info;
 	uint16_t count;
 	exword_dirent_t *entries;
-	path = mkpath("\\", root, id, "_CONTENT", NULL);
-	if (!_find(device, root, id, &info)) {
-		printf("No dictionary with id %s installed.\n", id);
-		return 0;
+	if (s->mode == EXWORD_MODE_CD) {
+		dir = mkpath(PATH_SEP, get_data_dir(), "sound", id, NULL);
+		path = mkpath("\\", root, id, NULL);
+	} else {
+		dir = mkpath(PATH_SEP, get_data_dir(), region_id2str(s->region), id, NULL);
+		path = mkpath("\\", root, id, "_CONTENT", NULL);
 	}
-	rsp = exword_setpath(device, path, 0);
-	free(path);
-	if (rsp != EXWORD_SUCCESS) {
-		printf("Dictionary %s does not exist\n", id);
-		return 0;
-	}
-	dir = mkpath(PATH_SEP, get_data_dir(), region_id2str(region), id, NULL);
-	if (stat(dir, &buf) == 0 && S_ISDIR(buf.st_mode)) {
-		printf("Local version of dictionary already exists\n");
+	rsp = _find(s->device, root, id, &info);
+	if (!rsp || exword_setpath(s->device, path, 0) != EXWORD_SUCCESS) {
+		printf("No content with id %s installed.\n", id);
+		free(path);
 		free(dir);
+		return 0;
+	}
+	if (stat(dir, &buf) == 0 && S_ISDIR(buf.st_mode)) {
+		printf("Local version of %s already exists\n", id);
+		free(dir);
+		free(path);
 		return 0;
 	}
 	if (mkdir(dir, 0770) < 0) {
 		printf("Failed to create local directory %s\n", id);
 		free(dir);
+		free(path);
 		return 0;
 	}
 	get_xor_key(info.key, 16, key);
-	exword_list(device, &entries, &count);
+	exword_list(s->device, &entries, &count);
 	for (i = 0; i < count; i++) {
 		if (entries[i].flags == 0) {
 			ext = strrchr(entries[i].name, '.');
@@ -294,18 +316,19 @@ int dict_decrypt(exword_t *device, int region, char *root, char *id)
 					    strcmp(ext, ".CJS") == 0))
 				continue;
 			printf("Decrypting %s...", entries[i].name);
-			if (_download_file(device, dir, entries[i].name, key))
+			if (_download_file(s->device, dir, entries[i].name, key))
 				printf("Done\n");
 			else
 				printf("Failed\n");
 		}
 	}
 	free(dir);
+	free(path);
 	exword_free_list(entries);
 	return 1;
 }
 
-int dict_auth(exword_t *device, char *user, char *auth)
+int content_auth(struct state *s, char *user, char *auth)
 {
 	int rsp, i;
 	uint16_t count;
@@ -323,27 +346,27 @@ int dict_auth(exword_t *device, char *user, char *auth)
 	memcpy(ai.blk1, "FFFFFFFFFFFFFFFF", 16);
 	strncpy(u.name, user, 16);
 	strncpy(ai.blk2, user, 24);
-	exword_setpath(device, "\\_INTERNAL_00", 0);
-	rsp = exword_authchallenge(device, c);
+	exword_setpath(s->device, "\\_INTERNAL_00", 0);
+	rsp = exword_authchallenge(s->device, c);
 	if (rsp != EXWORD_SUCCESS)
 		return 0;
-	exword_setpath(device, "", 0);
-	exword_list(device, &entries, &count);
+	exword_setpath(s->device, "", 0);
+	exword_list(s->device, &entries, &count);
 	for (i = 0; i < count; i++) {
 		if (strcmp(entries[i].name, "_SD_00") == 0) {
-			exword_setpath(device, "\\_SD_00", 0);
-			rsp = exword_authchallenge(device, c);
+			exword_setpath(s->device, "\\_SD_00", 0);
+			rsp = exword_authchallenge(s->device, c);
 			if (rsp != EXWORD_SUCCESS) {
-				exword_authinfo(device, &ai);
+				exword_authinfo(s->device, &ai);
 			}
 		}
 	}
 	exword_free_list(entries);
-	exword_userid(device, u);
+	exword_userid(s->device, u);
 	return 1;
 }
 
-int dict_reset(exword_t *device, char *user)
+int content_reset(struct state *s, char *user)
 {
 	int i;
 	exword_authinfo_t info;
@@ -353,9 +376,9 @@ int dict_reset(exword_t *device, char *user)
 	memcpy(info.blk1, "FFFFFFFFFFFFFFFF", 16);
 	strncpy(info.blk2, user, 24);
 	strncpy(u.name, user, 16);
-	exword_setpath(device, "\\_INTERNAL_00", 0);
-	exword_authinfo(device, &info);
-	exword_userid(device, u);
+	exword_setpath(s->device, "\\_INTERNAL_00", 0);
+	exword_authinfo(s->device, &info);
+	exword_userid(s->device, u);
 	printf("User %s with key 0x", u.name);
 	for (i = 0; i < 20; i++) {
 		printf("%02X", info.challenge[i] & 0xff);
@@ -363,16 +386,16 @@ int dict_reset(exword_t *device, char *user)
 	printf(" registered\n");
 	if (!_save_user_key(user, info.challenge))
 		printf("Warning - Failed to save authentication info!\n");
-	return dict_auth(device, user, info.challenge);
+	return content_auth(s, user, info.challenge);
 }
 
-int dict_list_remote(exword_t *device, char* root)
+int content_list_remote(struct state *s, char* root)
 {
 	int rsp, length, i, len;
 	char * locale;
 	admini_t *info = NULL;
-	exword_setpath(device, root, 0);
-	rsp = _read_admini(device, (char **)&info, &length);
+	exword_setpath(s->device, root, 0);
+	rsp = _read_admini(s->device, (char **)&info, &length);
 	if (rsp >= 0) {
 		for (i = 0; i < length / 180; i++) {
 			locale =  convert_to_locale("SHIFT_JIS", &locale, &len, info[i].name, strlen(info[i].name) + 1);
@@ -384,14 +407,17 @@ int dict_list_remote(exword_t *device, char* root)
 	return 1;
 }
 
-int dict_list_local(int region)
+int content_list_local(struct state *s)
 {
 	DIR *dir;
 	char *name, *path, *d;
 	char *locale;
 	int len, i = 0;
 	struct dirent *entry;
-	d = mkpath(PATH_SEP, get_data_dir(), region_id2str(region), NULL);
+	if (s->mode == EXWORD_MODE_CD)
+		d = mkpath(PATH_SEP, get_data_dir(), "sound", NULL);
+	else
+		d = mkpath(PATH_SEP, get_data_dir(), region_id2str(s->region), NULL);
 	dir = opendir(d);
 	if (!dir) {
 		free(d);
@@ -401,7 +427,10 @@ int dict_list_local(int region)
 		if (entry->d_name[0] == '.')
 			continue;
 		path = mkpath(PATH_SEP, d, entry->d_name, NULL);
-		name = _get_name(path);
+		if (s->mode == EXWORD_MODE_CD)
+			name = _get_cd_name(path);
+		else
+			name = _get_dict_name(path);
 		if (name) {
 			locale =  convert_to_locale("SHIFT_JIS", &locale, &len, name, strlen(name) + 1);
 			printf("%d. %s (%s)\n", i, (locale == NULL ? name : locale), entry->d_name);
@@ -416,13 +445,13 @@ int dict_list_local(int region)
 	return 1;
 }
 
-int dict_remove(exword_t *device, char *root, char *id)
+int content_remove(struct state *s, char *root, char *id)
 {
 	admini_t info;
 	exword_cryptkey_t ck;
 	int rsp;
-	if (!_find(device, root, id, &info)) {
-		printf("No dictionary with id %s installed.\n", id);
+	if (!_find(s->device, root, id, &info)) {
+		printf("No content with id %s installed.\n", id);
 		return 0;
 	}
 	memset(&ck, 0, sizeof(exword_cryptkey_t));
@@ -431,12 +460,12 @@ int dict_remove(exword_t *device, char *root, char *id)
 	memcpy(ck.blk2, info.key + 2, 8);
 	memcpy(ck.blk2 + 8, info.key + 12, 4);
 	printf("Removing %s...", id);
-	rsp = exword_unlock(device);
-	rsp |= exword_cname(device, info.name, id);
-	rsp |= exword_cryptkey(device, &ck);
+	rsp = exword_unlock(s->device);
+	rsp |= exword_cname(s->device, info.name, id);
+	rsp |= exword_cryptkey(s->device, &ck);
 	if (rsp == EXWORD_SUCCESS)
-		rsp |= exword_remove_file(device, id, 0);
-	rsp |= exword_lock(device);
+		rsp |= exword_remove_file(s->device, id, 0);
+	rsp |= exword_lock(s->device);
 	if (rsp == EXWORD_SUCCESS)
 		printf("Done\n");
 	else
@@ -444,7 +473,7 @@ int dict_remove(exword_t *device, char *root, char *id)
 	return (rsp == EXWORD_SUCCESS);
 }
 
-int dict_install(exword_t *device, int region, char *root, char *id)
+int content_install(struct state *s, char *root, char *id)
 {
 	DIR *dhandle;
 	struct dirent *entry;
@@ -463,11 +492,14 @@ int dict_install(exword_t *device, int region, char *root, char *id)
 	memcpy(ck.blk1 + 10, key1 + 10, 2);
 	memcpy(ck.blk2, key1 + 2, 8);
 	memcpy(ck.blk2 + 8, key1 + 12, 4);
-	if (_find(device, root, id, &info)) {
-		printf("Dictionary with id %s already installed.\n", id);
+	if (_find(s->device, root, id, &info)) {
+		printf("Content with id %s already installed.\n", id);
 		return 0;
 	}
-	dir = mkpath(PATH_SEP, get_data_dir(), region_id2str(region), id, NULL);
+	if (s->mode == EXWORD_MODE_CD)
+		dir = mkpath(PATH_SEP, get_data_dir(), "sound", id, NULL);
+	else
+		dir = mkpath(PATH_SEP, get_data_dir(), region_id2str(s->region), id, NULL);
 	dhandle = opendir(dir);
 	if (dhandle == NULL) {
 		printf("Can find dictionary directory %s.\n", id);
@@ -475,32 +507,38 @@ int dict_install(exword_t *device, int region, char *root, char *id)
 		return 0;
 	}
 	size = _get_size(dir);
-	rsp = exword_get_capacity(device, &cap);
+	rsp = exword_get_capacity(s->device, &cap);
 	if (rsp != EXWORD_SUCCESS || size >= cap.free || size < 0) {
 		printf("Insufficent space on device.\n");
 		free(dir);
 		closedir(dhandle);
 		return 0;
 	}
-	name = _get_name(dir);
+	if (s->mode == EXWORD_MODE_CD)
+		name = _get_cd_name(dir);
+	else
+		name = _get_dict_name(dir);
 	if (name == NULL) {
-		printf("%s: missing diction.htm\n", id);
+		printf("%s: can't determine name\n", id);
 		free(dir);
 		return 0;
 	}
-	rsp = exword_unlock(device);
-	rsp |= exword_cname(device, name, id);
-	rsp |= exword_cryptkey(device, &ck);
+	rsp = exword_unlock(s->device);
+	rsp |= exword_cname(s->device, name, id);
+	rsp |= exword_cryptkey(s->device, &ck);
 	free(name);
 	if (rsp == EXWORD_SUCCESS) {
-		path = mkpath("\\", root, id, "_CONTENT", NULL);
-		exword_setpath(device, path, 1);
+		if (s->mode == EXWORD_MODE_CD)
+			path = mkpath("\\", root, id, NULL);
+		else
+			path = mkpath("\\", root, id, "_CONTENT", NULL);
+		exword_setpath(s->device, path, 1);
 		free(path);
 		while ((entry = readdir(dhandle)) != NULL) {
 			filename = mkpath(PATH_SEP, dir, entry->d_name, NULL);
 			if (stat(filename, &buf) == 0 && S_ISREG(buf.st_mode)) {
 				printf("Transferring %s...", entry->d_name);
-				if (_upload_file(device, dir, entry->d_name, ck.xorkey))
+				if (_upload_file(s->device, dir, entry->d_name, ck.xorkey))
 					printf("Done\n");
 				else
 					printf("Failed\n");
@@ -508,11 +546,13 @@ int dict_install(exword_t *device, int region, char *root, char *id)
 			free(filename);
 		}
 		closedir(dhandle);
-		path = mkpath("\\", root, id, "_USER", NULL);
-		exword_setpath(device, path, 1);
-		free(path);
+		if (s->mode == EXWORD_MODE_LIBRARY) {
+			path = mkpath("\\", root, id, "_USER", NULL);
+			exword_setpath(s->device, path, 1);
+			free(path);
+		}
 	}
 	free(dir);
-	rsp |= exword_lock(device);
+	rsp |= exword_lock(s->device);
 	return (rsp == EXWORD_SUCCESS);
 }

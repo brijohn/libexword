@@ -20,7 +20,7 @@ libexword_la_CFLAGS = \
 libexword_la_LDFLAGS = -version-info $(LIBEXWORD_LIBRARY_VERSION) $(EXTRA_LDFLAGS)
 libexword_la_LIBADD = $(USB_LIBS) $(ICONV_LIBS) $(EXTRA_LIBS)
 
-exword_SOURCES = main.c dict.c util.c
+exword_SOURCES = main.c content.c util.c
 exword_CFLAGS = \
         $(WARN_CFLAGS)          \
         $(AM_CFLAGS)

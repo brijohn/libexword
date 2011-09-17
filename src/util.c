@@ -141,6 +141,20 @@ char * region_id2str(int id)
 	}
 }
 
+char * mode_id2str(int id)
+{
+	switch(id) {
+	case EXWORD_MODE_TEXT:
+		return "text";
+	case EXWORD_MODE_CD:
+		return "cd";
+	case EXWORD_MODE_LIBRARY:
+		return "library";
+	default:
+		return NULL;
+	}
+}
+
 char * mkpath(const char* separator, const char *base, ...)
 {
 	char *path, *part;

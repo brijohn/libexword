@@ -74,13 +74,13 @@ enum exword_region {
  */
 enum exword_mode {
 	/** This mode is used to install and remove add-on dictionaries.*/
-	EXWORD_MODE_LIBRARY = 0x0000,
+	EXWORD_MODE_LIBRARY = 0x0100,
 
 	/** This mode is used to upload and delete text files. */
-	EXWORD_MODE_TEXT    = 0x0100,
+	EXWORD_MODE_TEXT    = 0x0200,
 
 	/** This mode is used to upload cd audio. */
-	EXWORD_MODE_CD      = 0x0200,
+	EXWORD_MODE_CD      = 0x0400,
 };
 
 /** @ingroup cmd
