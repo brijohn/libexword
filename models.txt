@@ -2,18 +2,23 @@ This file contains a list of model Information for Casio EX-word dictionaries
 
 dictionary               model           sub-model    extended     usb id
 ---------------------------------------------------------------------------
+Dataplus 2 XD-ST4800     gy131,ON,0100   gy271                     07cf:6101 /* Not yet supported by libexword */
 Dataplus 3 XD-GW9600     gy131,ON,0101   gy392                     07cf:6101
 Dataplus 3 XD-SW9400     gy131,ON,0101   gy352                     07cf:6101
 Dataplus 3 XD-SW4800     gy131,ON,0101   gy350                     07cf:6101
 Dataplus 3 XD-SW6400     gy131,ON,0101   gy355                     07cf:6101
 Dataplus 3 EW-H6000      gy131,ON,0101   gy331                     07cf:6101
+Dataplus 4 XD-SP6600     gy131,ON,0101   gy820                     07cf:6101
 Dataplus 4 XD-SP9500     gy131,ON,0101   gy823                     07cf:6101
+Dataplus 4 XD-SP6700     gy131,ON,0101   gy830                     07cf:6101
 Dataplus 4 EV-SP2900     gy131,ON,0100   gy808                     07cf:6101
+Dataplus 4 EV-SP3900     gy131,ON,0100   gy809                     07cf:6101
 Dataplus 4 XD-GF10000    gy131,ON,0100   gy871                     07cf:6101
 Dataplus 4 XD-SF6300     gy131,ON,0200   gy869                     07cf:6101
 Dataplus 4 XD-SF6350     gy131,ON,0300   gy878                     07cf:6101
 Dataplus 5 XD-A8500      gy131,ON,0100   gy999        CY101        07cf:6101
 Dataplus 5 XD-A10000     gy131,ON,0100   gy999        CY102        07cf:6101
+Dataplus 5 XD-A9800      gy131,ON,0100   gy999        CY103        07cf:6101
 Dataplus 5 XD-A4800      gy131,ON,0100   gy999        CY104        07cf:6101
 Dataplus 5 XD-A3800      gy131,ON,0100   gy999        CY105        07cf:6101
 Dataplus 5 XD-A6800      gy131,ON,0100   gy999        CY110        07cf:6101
