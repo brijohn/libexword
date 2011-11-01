@@ -811,7 +811,11 @@ int exword_get_model(exword_t *self, exword_model_t * model)
 						memcpy(model->ext_model, ptr, 6);
 						model->capabilities |= CAP_EXT;
 					} else if (memcmp(ptr, "C", 1) == 0) {
-						model->capabilities |= CAP_C;
+						if (model->capabilities & CAP_C) {
+							model->capabilities |= CAP_C2;
+						} else {
+							model->capabilities |= CAP_C;
+						}
 					}
 					ptr += strlen(ptr) + 1;
 				}

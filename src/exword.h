@@ -100,6 +100,9 @@ enum exword_capability {
 	/** C capability */
 	CAP_C   = (1 << 3),
 
+	/** C2 capability */
+	CAP_C2   = (1 << 4),
+
 	/** Device contains extended model information */
 	CAP_EXT = (1 << 15),
 };

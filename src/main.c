@@ -350,11 +350,12 @@ void model(struct state *s)
 		if (model.capabilities & CAP_EXT)
 			printf("Extended: %s\n", model.ext_model);
 		if ((model.capabilities & ~CAP_EXT) != 0) {
-			printf("Capabilities: %s %s %s %s\n",
+			printf("Capabilities: %s %s %s %s %s\n",
 				model.capabilities & CAP_SW ? "SW" : "",
 				model.capabilities & CAP_P ? "P" : "",
 				model.capabilities & CAP_F ? "F" : "",
-				model.capabilities & CAP_C ? "C" : "");
+				model.capabilities & CAP_C ? "C" : "",
+				model.capabilities & CAP_C2 ? "C" : "");
 		}
 	} else {
 		printf("%s\n", exword_error_to_string(rsp));
