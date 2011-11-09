@@ -20,8 +20,9 @@
  */
 
 #include <string.h>
+#include <stdint.h>
 
-static unsigned long table1[] = {
+static uint32_t table1[] = {
 	0x3F7EB852, // dword_3A8160
 	0x3F81930C, // dword_3A8164
 	0x3F86F34D, // dword_3A8168
@@ -35,7 +36,7 @@ static unsigned long table1[] = {
 	0x3fc90fdb, // dword_3a8188
 };
 
-static unsigned long table2[] = {
+static uint32_t table2[] = {
 	0x31A4B7A0, // dword_3A81A0
 	0x3BFFFF55, // dword_3A81A4
 	0x3C7FFD55, // dword_3A81A8
@@ -295,15 +296,15 @@ static unsigned long table2[] = {
 	0x3F68C7B7, // dword_3A85A0
 };
 
-unsigned long sub_3a65dc(unsigned long arg_0, unsigned long arg_4)
+uint32_t sub_3a65dc(uint32_t arg_0, uint32_t arg_4)
 {
-	unsigned short var_c, var_18;
-	unsigned short var_14, var_1c;
-	unsigned short var_8;
-	unsigned short var_24;
-	unsigned long var_20;
-	unsigned long var_10;
-	unsigned long var_4;
+	uint16_t var_c, var_18;
+	uint16_t var_14, var_1c;
+	uint16_t var_8;
+	uint16_t var_24;
+	uint32_t var_20;
+	uint32_t var_10;
+	uint32_t var_4;
 	var_c = (arg_0 >> 16) & 0x7f80;
 	var_18 = (arg_4 >> 16) & 0x7f80;
 	var_14 = (arg_0 >> 16) & 0x8000;
@@ -333,10 +334,10 @@ unsigned long sub_3a65dc(unsigned long arg_0, unsigned long arg_4)
 	var_8 = var_c + var_18 - 0x84;
 	var_4 <<= 7;
 	var_10 <<= 7;
-	var_20 = ((long)((var_4 >> 16) & 0xffff)) * ((long)(var_10 & 0xffff));
-	var_20 += ((long)(var_4 & 0xffff)) * ((long)((var_10 >> 16) & 0xffff));
+	var_20 = ((int32_t)((var_4 >> 16) & 0xffff)) * ((int32_t)(var_10 & 0xffff));
+	var_20 += ((int32_t)(var_4 & 0xffff)) * ((int32_t)((var_10 >> 16) & 0xffff));
 	var_20 >>= 16;
-	var_20 += ((long)((var_4 >> 16) & 0xffff)) * ((long)((var_10 >> 16) & 0xffff));
+	var_20 += ((int32_t)((var_4 >> 16) & 0xffff)) * ((int32_t)((var_10 >> 16) & 0xffff));
 	if ((var_20 >> 16) & 0xff80) {
 		while((var_20 >> 16) & 0xff00) {
 			var_8 += 1;
@@ -349,7 +350,7 @@ unsigned long sub_3a65dc(unsigned long arg_0, unsigned long arg_4)
 		}
 	}
 	if (var_8 != 0 && (var_8 & 0x8000) == 0) {
-		if ((short)var_8 < 0xff) {
+		if ((int16_t)var_8 < 0xff) {
 			var_20 = var_20 & 0x7fffff;
 			var_20 |= ((var_24 | (var_8 << 7)) << 16);
 			return var_20;
@@ -362,10 +363,10 @@ unsigned long sub_3a65dc(unsigned long arg_0, unsigned long arg_4)
 	}
 }
 
-unsigned long sub_3a6b8f(unsigned long arg_0, unsigned long arg_4)
+uint32_t sub_3a6b8f(uint32_t arg_0, uint32_t arg_4)
 {
-	unsigned long var_8;
-	short var_4 = 0x96;
+	uint32_t var_8;
+	int16_t var_4 = 0x96;
 	if (arg_0 == 0)
 		return 0;
 	while ((arg_0 & 0xFF000000)) {
@@ -385,13 +386,13 @@ unsigned long sub_3a6b8f(unsigned long arg_0, unsigned long arg_4)
 	return ((var_4 << 23) | var_8);
 }
 
-unsigned long sub_3a6886(unsigned long arg_0)
+uint32_t sub_3a6886(uint32_t arg_0)
 {
-	unsigned short var_28, var_4, var_c;
-	unsigned long var_18;
-	unsigned long var_10;
-	unsigned long var_8;
-	unsigned long var_14, var_24, var_1c, var_20;
+	uint16_t var_28, var_4, var_c;
+	uint32_t var_18;
+	uint32_t var_10;
+	uint32_t var_8;
+	uint32_t var_14, var_24, var_1c, var_20;
 	var_28 = (arg_0 >> 16) & 0x8000;
 	var_4 = (arg_0 >> 16) & 0x7f80;
 	if (var_4 == 0x7f80) {
@@ -406,14 +407,14 @@ unsigned long sub_3a6886(unsigned long arg_0)
 		var_18 = (var_28 << 16);
 		return var_18;
 	}
-	var_4 = (short)var_4 >> 7;
-	if ((short)var_4 < 0x73 || (var_4 == 0x73 && (arg_0 & 0x7fffff) < 0x689769)) {
+	var_4 = (int16_t)var_4 >> 7;
+	if ((int16_t)var_4 < 0x73 || (var_4 == 0x73 && (arg_0 & 0x7fffff) < 0x689769)) {
 		return arg_0;
 	}
 	var_10 = (arg_0 & 0x7fffff) | 0x800000;
 	var_c = var_4 - 0x7f;
 	if (var_c == 0 || (var_c & 0x8000) != 0) {
-		var_20 = 0x10 - (short)var_c;
+		var_20 = 0x10 - (int16_t)var_c;
 		var_14 = var_10 >> (var_20 & 0xff);
 		var_24 = 1 << (var_20 & 0xff);
 		var_1c = (var_24 - 1) & var_10;
@@ -436,13 +437,13 @@ unsigned long sub_3a6886(unsigned long arg_0)
 	var_8 = sub_3a6b8f(var_24, 0);
 	var_18 = sub_3a65dc(var_18, var_8);
 	var_4 = (var_18 >> 16) & 0x7f80;
-	var_4 = (short)var_4 >> 7;
+	var_4 = (int16_t)var_4 >> 7;
 	var_4 = var_4 - (var_20 & 0xffff);
 	if (var_4 == 0 || (var_4 & 0x8000) != 0) {
 		var_18 = var_28 << 16;
 		return var_18;
 	}
-	if ((short)var_4 < 0xff) {
+	if ((int16_t)var_4 < 0xff) {
 		var_18 = var_18 & 0x7fffff;
 		var_18 = var_18 | ((var_28 | (var_4 << 7)) << 16);
 		return var_18;
@@ -452,18 +453,18 @@ unsigned long sub_3a6886(unsigned long arg_0)
 	return var_18;
 }
 
-unsigned long sub_3a62c9(unsigned long arg_0, unsigned long arg_4)
+uint32_t sub_3a62c9(uint32_t arg_0, uint32_t arg_4)
 {
-	unsigned short var_1c;
-	unsigned short var_c;
-	unsigned short var_8;
-	unsigned short var_18, var_28;
-	unsigned short var_24, var_20;
-	unsigned long var_14;
-	unsigned long var_4;
-	unsigned long var_10;
-	unsigned long *var_2c;
-	unsigned long *var_30;
+	uint16_t var_1c;
+	uint16_t var_c;
+	uint16_t var_8;
+	uint16_t var_18, var_28;
+	uint16_t var_24, var_20;
+	uint32_t var_14;
+	uint32_t var_4;
+	uint32_t var_10;
+	uint32_t *var_2c;
+	uint32_t *var_30;
 	var_c = (arg_0 >> 16) & 0x7f80;
 	if (var_c == 0)
 		return arg_4;
@@ -477,10 +478,10 @@ unsigned long sub_3a62c9(unsigned long arg_0, unsigned long arg_4)
 	var_14 = var_c - var_1c;
 	var_4 = (arg_0 & 0x7fffff) | 0x800000;
 	var_10 = (arg_4 & 0x7fffff) | 0x800000;
-	if ((long)var_14 < 0 || (var_14 == 0 && var_4 < var_10)) {
+	if ((int32_t)var_14 < 0 || (var_14 == 0 && var_4 < var_10)) {
 		var_14 = ~var_14 + 1;
 		var_8 = var_1c;
-		if ((long)var_14 >= 0x18 || var_1c == 0xff)
+		if ((int32_t)var_14 >= 0x18 || var_1c == 0xff)
 			return arg_4;
 		var_20 = var_24;
 		var_28 = var_18;
@@ -489,7 +490,7 @@ unsigned long sub_3a62c9(unsigned long arg_0, unsigned long arg_4)
 		var_30 = &var_4;
 	} else {
 		var_8 = var_c;
-		if ((long)var_14 >= 0x18 || var_c == 0xff)
+		if ((int32_t)var_14 >= 0x18 || var_c == 0xff)
 			return arg_0;
 		var_20 = var_18;
 		var_28 = var_24;
@@ -505,7 +506,7 @@ unsigned long sub_3a62c9(unsigned long arg_0, unsigned long arg_4)
 		return *var_2c;
 	if ((*var_2c >> 16) & 0xff80) {
 		while ((*var_2c >> 16) & 0xff00) {
-			if ((short)var_8 >= 0x7ff) {
+			if ((int16_t)var_8 >= 0x7ff) {
 				*var_2c = ((var_20 | 0x7fff) << 16) | 0xffff;
 				return *var_2c;
 			}
@@ -515,7 +516,7 @@ unsigned long sub_3a62c9(unsigned long arg_0, unsigned long arg_4)
 		}
 	} else {
 		while (!((*var_2c >> 16) & 0x80)) {
-			if ((short)var_8 <= 0) {
+			if ((int16_t)var_8 <= 0) {
 				*var_2c = (var_20 << 16);
 				return *var_2c;
 			}
@@ -528,16 +529,16 @@ unsigned long sub_3a62c9(unsigned long arg_0, unsigned long arg_4)
 	return *var_2c;
 }
 
-unsigned long sub_3a65b1(unsigned long arg_0, unsigned long arg_4)
+uint32_t sub_3a65b1(uint32_t arg_0, uint32_t arg_4)
 {
-	unsigned long var_8 = arg_4 ^ 0x80000000;
+	uint32_t var_8 = arg_4 ^ 0x80000000;
 	return sub_3a62c9(arg_0, var_8);
 }
 
-unsigned long sub_3a6b2c(unsigned long arg_0)
+uint32_t sub_3a6b2c(uint32_t arg_0)
 {
-	unsigned long var_4;
-	unsigned long var_c = table1[10];
+	uint32_t var_4;
+	uint32_t var_c = table1[10];
 	if ((arg_0 & 0x7fffffff) > 0x43fe7811)
 		return 0x3f800000;
 	var_4 = sub_3a65b1(var_c, arg_0);
@@ -554,9 +555,9 @@ unsigned long sub_3a6b2c(unsigned long arg_0)
  */
 void get_xor_key(char *key, long size, char *xorkey)
 {
-	unsigned long var_68, var_58, var_54, var_c, var_8, var_28, var_24, var_34;
-	unsigned long var_1c, var_2c, var_64, var_6c, var_10, var_48, var_20, var_5c;
-	unsigned long var_4, var_14, var_18, var_30, var_4c, var_50;
+	uint32_t var_68, var_58, var_54, var_c, var_8, var_28, var_24, var_34;
+	uint32_t var_1c, var_2c, var_64, var_6c, var_10, var_48, var_20, var_5c;
+	uint32_t var_4, var_14, var_18, var_30, var_4c, var_50;
 	char var_44[16];
 	char *var_70 = key;
 	char *var_60 = xorkey;
@@ -602,7 +603,7 @@ void get_xor_key(char *key, long size, char *xorkey)
 		if (var_2c == size)
 			var_2c = 0;
 		var_5c = var_44[var_2c] ^ (var_c & 0xff);
-		var_5c = (long)var_5c * ((long)(var_48 & 0xff));
+		var_5c = (int32_t)var_5c * ((int32_t)(var_48 & 0xff));
 		var_2c += 1;
 		var_4 = sub_3a6b8f(var_5c, 8);
 		var_48 = sub_3a62c9(var_48, var_4);
@@ -670,13 +671,13 @@ void crypt_data(char *data, int size, char *key)
 	leftover = size % 16;
 	ptr = data;
 	for (i = 0; i < blks; i++) {
-		*((long *)ptr) = *((long *)ptr) ^ ((long *)key)[0];
+		*((int32_t *)ptr) = *((int32_t *)ptr) ^ ((int32_t *)key)[0];
 		ptr += 4;
-		*((long *)ptr) = *((long *)ptr) ^ ((long *)key)[1];
+		*((int32_t *)ptr) = *((int32_t *)ptr) ^ ((int32_t *)key)[1];
 		ptr += 4;
-		*((long *)ptr) = *((long *)ptr) ^ ((long *)key)[2];
+		*((int32_t *)ptr) = *((int32_t *)ptr) ^ ((int32_t *)key)[2];
 		ptr += 4;
-		*((long *)ptr) = *((long *)ptr) ^ ((long *)key)[3];
+		*((int32_t *)ptr) = *((int32_t *)ptr) ^ ((int32_t *)key)[3];
 		ptr += 4;
 	}
 	for (i = 0; i < leftover; i++) {
