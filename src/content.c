@@ -535,6 +535,8 @@ int content_install(struct state *s, char *root, char *id)
 		exword_setpath(s->device, path, 1);
 		free(path);
 		while ((entry = readdir(dhandle)) != NULL) {
+			if (!is_valid_sfn(entry->d_name))
+				continue;
 			filename = mkpath(PATH_SEP, dir, entry->d_name, NULL);
 			if (stat(filename, &buf) == 0 && S_ISREG(buf.st_mode)) {
 				printf("Transferring %s...", entry->d_name);
