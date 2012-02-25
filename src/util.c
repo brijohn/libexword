@@ -153,6 +153,8 @@ char * region_id2str(int id)
 		return "ja";
 	case EXWORD_REGION_CN:
 		return "cn";
+	case EXWORD_REGION_IN:
+		return "in";
 	case EXWORD_REGION_KR:
 		return "kr";
 	case EXWORD_REGION_DE:

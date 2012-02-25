@@ -279,6 +279,8 @@ void connect(struct state *s)
 				options |= EXWORD_REGION_KR;
 			} else if (strcmp(region, "cn") == 0) {
 				options |= EXWORD_REGION_CN;
+			} else if (strcmp(region, "in") == 0) {
+				options |= EXWORD_REGION_IN;
 			} else if (strcmp(region, "de") == 0) {
 				options |= EXWORD_REGION_DE;
 			} else if (strcmp(region, "es") == 0) {
