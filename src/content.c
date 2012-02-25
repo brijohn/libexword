@@ -37,6 +37,7 @@ char *admini_list[] = {
 	"admini.inf",
 	"adminikr.inf",
 	"adminicn.inf",
+	"adminiin.inf",
 	"adminide.inf",
 	"adminies.inf",
 	"adminifr.inf",
