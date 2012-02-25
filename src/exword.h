@@ -55,6 +55,9 @@ enum exword_region {
 	/** Chinese Region */
 	EXWORD_REGION_CN = 0x60,
 
+	/** Indian Region */
+	EXWORD_REGION_IN = 0x68,
+
 	/** German Region */
 	EXWORD_REGION_DE = 0x80,
 
