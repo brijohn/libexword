@@ -21,9 +21,7 @@
 #ifndef _MAIN_H
 #define _MAIN_H
 
-#include "exword.h"
-#include "list.h"
-
+#include "util.h"
 
 struct state {
 	exword_t *device;
@@ -34,9 +32,9 @@ struct state {
 	int debug;
 	int mkdir;
 	int authenticated;
-	int sd_inserted;
 	int disconnect_event;
 	char *cwd;
+	struct list_head dev_list;
 	struct list_head cmd_list;
 };
 
@@ -60,7 +58,6 @@ typedef struct {
 	char key[16];
 	char name[132];
 } admini_t;
-
 
 int content_list_remote(struct state *s, char *root);
 int content_list_local(struct state *s);

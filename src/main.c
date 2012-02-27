@@ -74,8 +74,8 @@ struct command commands[] = {
 	"Downloads a file from dicionary.\n", 0x700},
 {"setpath", setpath, "setpath <path>\t\t- changes directory on dictionary\n",
 	"Changes to the the specified path.\n\n"
-	"<path> is in the form of <sd|mem://<path>\n"
-	"Example: mem:/// - sets path to root of internal memory\n", 0x700},
+	"<path> is in the form of <device>://<path>\n"
+	"Example: drv0:/// - sets path to root of internal memory\n", 0x700},
 {"cd",  content, "cd <sub-function>\t- audio cd commands\n",
 	"This command allows manipulation of installed audio cds. It uses\n"
 	"the storage medium of your current path as the storage device to\n"
@@ -252,7 +252,6 @@ void connect(struct state *s)
 	char *mode;
 	char *region;
 	int error = 0;
-	int i;
 	uint16_t count;
 	exword_dirent_t *entries;
 	if (s->connected)
@@ -304,12 +303,7 @@ void connect(struct state *s)
 		} else {
 			if (exword_setpath(s->device, "", 0) == EXWORD_SUCCESS) {
 				if (exword_list(s->device, &entries, &count) == EXWORD_SUCCESS) {
-					for (i = 0; i < count; i++) {
-						if (strcmp(entries[i].name, "_SD_00") == 0) {
-							s->sd_inserted = 1;
-							break;
-						}
-					}
+					dev_list_scan(&(s->dev_list), entries);
 					exword_free_list(entries);
 				}
 			}
@@ -324,6 +318,7 @@ void connect(struct state *s)
 
 void disconnect(struct state *s)
 {
+	int i;
 	if (!s->connected)
 		return;
 	if (!s->disconnect_event)
@@ -338,6 +333,7 @@ void disconnect(struct state *s)
 	s->connected = 0;
 	s->authenticated = 0;
 	s->disconnect_event = 0;
+	dev_list_clear(&(s->dev_list));
 }
 
 void model(struct state *s)
@@ -489,15 +485,15 @@ void content(struct state *s)
 {
 	int i;
 	char val;
-	char root[25];
+	char *ptr;
+	char *root;
 	char authkey[41];
 	char *subfunc, *id, *user;
 	if (!s->connected)
 		return;
-	if (!memcmp(s->cwd, "\\_SD_00", 7))
-		strcpy(root, "\\_SD_00");
-	else
-		strcpy(root, "\\_INTERNAL_00");
+	ptr = strchr(s->cwd + 1, '\\');
+	root = xmalloc(ptr - s->cwd + 7);
+	strncpy(root, s->cwd, ptr - s->cwd);
 	if (s->mode == EXWORD_MODE_CD) {
 		strcat(root, "\\SOUND");
 	}
@@ -581,14 +577,14 @@ void content(struct state *s)
 			} else {
 				if (!s->authenticated) {
 					printf("Not authenticated.\n");
-					return;
+				} else {
+					if (strcmp(subfunc, "decrypt") == 0)
+						content_decrypt(s, root, id);
+					else if (strcmp(subfunc, "install") == 0)
+						content_install(s, root, id);
+					else if (strcmp(subfunc, "remove") == 0)
+						content_remove(s, root, id);
 				}
-				if (strcmp(subfunc, "decrypt") == 0)
-					content_decrypt(s, root, id);
-				else if (strcmp(subfunc, "install") == 0)
-					content_install(s, root, id);
-				else if (strcmp(subfunc, "remove") == 0)
-					content_remove(s, root, id);
 			}
 		} else {
 			printf("Unknown subfunction\n");
@@ -598,41 +594,42 @@ void content(struct state *s)
 		}
 		free(subfunc);
 	}
+	free(root);
 }
 
 void setpath(struct state *s)
 {
 	int rsp;
+	char *arg;
+	char *ptr;
 	char *path;
-	char path2[256];
+	char *device;
 	if (!s->connected)
 		return;
-	path = peek_arg(&(s->cmd_list));
-	if (path == NULL) {
+	arg = peek_arg(&(s->cmd_list));
+	if (arg == NULL) {
 		printf("No path specified\n");
 	} else {
-		rsp = sscanf(path, "sd://%255s", path2);
-		if (rsp > 0) {
-			if (s->sd_inserted) {
-				rsp = _setpath(s, "\\_SD_00", path2, s->mkdir);
+		ptr = strstr(arg, "://");
+		if (ptr != NULL) {
+			device = xmalloc(ptr - arg + 1);
+			path = xmalloc(strlen(ptr) - 2);
+			strncpy(device, arg, ptr - arg);
+			strcpy(path, ptr + 3);
+			struct device_map *dev = dev_list_search(&(s->dev_list), device);
+			if (dev != NULL) {
+				rsp = _setpath(s, dev->root, path, s->mkdir);
 				if (rsp != EXWORD_SUCCESS) {
 					printf("%s\n", exword_error_to_string(rsp));
 					exword_setpath(s->device, s->cwd, 0);
 				}
 			} else {
-				printf("SD card not inserted.\n");
+				printf("No such device `%s`.\n", device);
 			}
+			free(device);
+			free(path);
 		} else {
-			rsp = sscanf(path, "mem://%255s", path2);
-			if (rsp > 0) {
-				rsp = _setpath(s, "\\_INTERNAL_00", path2, s->mkdir);
-				if (rsp != EXWORD_SUCCESS) {
-					printf("%s\n", exword_error_to_string(rsp));
-					exword_setpath(s->device, s->cwd, 0);
-				}
-			} else {
-				printf("Invalid argument. Format (sd|mem)://<path>\n");
-			}
+			printf("Invalid argument. Format <device>://<path>\n");
 		}
 	}
 }
@@ -732,6 +729,7 @@ void interactive(struct state *s)
 	       "Type 'help' for a list of commands.\n");
 	s->running = 1;
 	INIT_LIST_HEAD(&(s->cmd_list));
+	INIT_LIST_HEAD(&(s->dev_list));
 	load_history();
 	s->device = exword_init();
 	exword_register_disconnect_callback(s->device, disconnect_notify, s);

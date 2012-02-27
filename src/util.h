@@ -31,6 +31,19 @@
 
 #include <errno.h>
 
+#include "exword.h"
+#include "list.h"
+
+struct device_map {
+	char * dev;
+	char * root;
+	struct list_head list;
+};
+
+void dev_list_clear(struct list_head *head);
+void dev_list_scan(struct list_head *head, exword_dirent_t *entries);
+struct device_map * dev_list_search(struct list_head *head, char * dev);
+
 void * xmalloc(size_t n);
 void * xrealloc (void *ptr, size_t n);
 char * region_id2str(int id);

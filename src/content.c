@@ -354,7 +354,8 @@ int content_auth(struct state *s, char *user, char *auth)
 	exword_setpath(s->device, "", 0);
 	exword_list(s->device, &entries, &count);
 	for (i = 0; i < count; i++) {
-		if (strcmp(entries[i].name, "_SD_00") == 0) {
+		if (strcmp(entries[i].name, "_SD_00") == 0 ||
+		    strcmp(entries[i].name, "_SD_01") == 0) {
 			exword_setpath(s->device, "\\_SD_00", 0);
 			rsp = exword_authchallenge(s->device, c);
 			if (rsp != EXWORD_SUCCESS) {

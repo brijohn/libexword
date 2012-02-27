@@ -28,7 +28,7 @@
 #include <stdarg.h>
 #include <errno.h>
 
-#include "exword.h"
+#include "util.h"
 
 #if defined(__MINGW32__)
 # include <shlwapi.h>
@@ -86,6 +86,50 @@ void * xrealloc (void *ptr, size_t n)
 		abort();
 	}
 	return p;
+}
+
+void dev_list_clear(struct list_head *head)
+{
+	struct device_map * _dev;
+	while (!list_empty(head)) {
+		_dev = list_entry(head->next, struct device_map, list);
+		list_del(&(_dev->list));
+		free(_dev->dev);
+		free(_dev->root);
+		free(_dev);
+	}
+}
+
+void dev_list_scan(struct list_head *head, exword_dirent_t *entries)
+{
+	int i;
+	int len;
+	for (i = 0; entries[i].name != NULL; ++i) {
+		fflush(stdout);
+		struct device_map * _dev = xmalloc(sizeof(struct device_map));
+		memset(_dev, 0, sizeof(struct device_map));
+		len = strlen(entries[i].name);
+		_dev->root = xmalloc(len + 2);
+		_dev->dev = xmalloc(5);
+		_dev->root[0] = '\\';
+		strcpy(_dev->root + 1, entries[i].name);
+		if (entries[i].name[1] == 'S')
+			strcpy(_dev->dev, "crd");
+		if (entries[i].name[1] == 'I')
+			strcpy(_dev->dev, "drv");
+		_dev->dev[3] = entries[i].name[len - 1];
+		_dev->dev[4] = 0;
+		list_add_tail(&(_dev->list), head);
+	}
+}
+
+struct device_map * dev_list_search(struct list_head *head, char * dev)
+{
+	struct device_map *tmp;
+	list_for_each_entry(tmp, head, list)
+		if (strcmp(tmp->dev, dev) == 0)
+			return tmp;
+	return NULL;
 }
 
 const char * get_data_dir()
