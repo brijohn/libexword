@@ -201,6 +201,8 @@ char * region_id2str(int id)
 		return "in";
 	case EXWORD_REGION_KR:
 		return "kr";
+	case EXWORD_REGION_IT:
+		return "it";
 	case EXWORD_REGION_DE:
 		return "de";
 	case EXWORD_REGION_ES:
