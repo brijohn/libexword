@@ -803,6 +803,10 @@ int exword_get_model(exword_t *self, exword_model_t * model)
 				while (ptr < (hv.bs + hv_size)) {
 					if (memcmp(ptr, "SW", 2) == 0) {
 						model->capabilities |= CAP_SW;
+					} else if (memcmp(ptr, "ST", 2) == 0) {
+						model->capabilities |= CAP_ST;
+					} else if (memcmp(ptr, "T", 1) == 0) {
+						model->capabilities |= CAP_T;
 					} else if (memcmp(ptr, "P", 1) == 0) {
 						model->capabilities |= CAP_P;
 					} else if (memcmp(ptr, "F", 1) == 0) {
