@@ -75,6 +75,7 @@ void * xmalloc (size_t n)
 		fprintf(stderr, "abort: Out of Memory\n");
 		abort();
 	}
+	memset(p, 0, n);
 	return p;
 }
 
