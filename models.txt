@@ -41,3 +41,4 @@ Dataplus 5 XD-A6600      gy131,ON,0100   gy999        CY129        07cf:6101
 Dataplus 6 XD-B10000     gy131,ON,0100   gy999        CY166        07cf:6101
 Dataplus 6 XD-B7700      gy131,ON,0100   gy999        CY177        07cf:6101
 Dataplus 6 E-B99         gy131,ON,0100   gy999        CY193        07cf:6101
+Dataplus 6 XD-D9800      gy131,ON,0100   gy999        CY410        07cf:6101
