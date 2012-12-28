@@ -293,6 +293,7 @@ exword_t * exword_init();
 void exword_deinit(exword_t *self);
 int exword_is_connected(exword_t *self);
 void exword_set_debug(exword_t *self, int level);
+int exword_get_debug(exword_t *self);
 void exword_register_transfer_callbacks(exword_t *self, file_cb get, file_cb put, void *userdata);
 void exword_register_disconnect_callback(exword_t *self, disconnect_cb disconnect, void *userdata);
 void exword_poll_disconnect(exword_t *self);

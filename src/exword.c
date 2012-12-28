@@ -485,7 +485,7 @@ int exword_disconnect(exword_t *self)
 
 /** @ingroup misc
  * Sets the debug message level.
- * This function sets the debug level for the currentlt opened device.
+ * This function sets the debug level for the currently opened device.
  * @param self device handle
  * @param level debug level (0-5)
  */
@@ -494,6 +494,17 @@ void exword_set_debug(exword_t *self, int level)
 	self->debug = level;
 	if (self->obex_ctx)
 		self->obex_ctx->debug = self->debug;
+}
+
+/** @ingroup misc
+ * Gets the debug message level.
+ * This function gets the debug level for the currently opened device.
+ * @param self device handle
+ * @return current debug level
+ */
+int exword_get_debug(exword_t *self)
+{
+	return self->debug;
 }
 
 /** @ingroup misc
