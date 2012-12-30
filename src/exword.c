@@ -113,6 +113,7 @@ static int obex_to_exword_error(exword_t *self, int obex_rsp)
 		 * calling exword_disconnect is done since DP5s (and maybe DP4s)
 		 * do not autodisconnect.
 		 */
+		self->status |= 0x80;
 		if (!(self->status & 0x07))
 			self->status |= EXWORD_DISCONNECT_ERROR;
 		libusb_cancel_transfer(self->int_urb);
