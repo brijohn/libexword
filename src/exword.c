@@ -808,7 +808,7 @@ int exword_get_model(exword_t *self, exword_model_t * model)
 		while (obex_object_getnextheader(self->obex_ctx, obj, &hi, &hv, &hv_size)) {
 			if (hi == OBEX_HDR_BODY) {
 				model->capabilities = 0;
-				memcpy(model->model, hv.bs, 15);
+				memcpy(model->model, hv.bs, 14);
 				memcpy(model->sub_model, hv.bs + 14, 6);
 				ptr = hv.bs + 23;
 				while (ptr < (hv.bs + hv_size)) {

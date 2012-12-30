@@ -199,7 +199,7 @@ typedef struct {
 #pragma pack(1)
 typedef struct {
 	/** Main model string */
-	char model[15];
+	char model[14];
 	/** sub model string */
 	char sub_model[6];
 	/** extended model string (DP5+) */
