@@ -14,7 +14,7 @@ REQUIRED_AUTOMAKE_VERSION=1.9
 }
 
 (cd $srcdir;
-    autoreconf --install --symlink &&
+    autoreconf --install --symlink -I m4 &&
     ./configure $@
 )
 

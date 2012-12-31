@@ -6,6 +6,7 @@ AC_INIT(libexword, 2.0, brijohn@gmail.com)
 AM_INIT_AUTOMAKE([-Wall -Werror])
 AC_CONFIG_SRCDIR([src/exword.c])
 AC_CONFIG_HEADERS([config.h])
+AC_CONFIG_MACRO_DIR([m4])
 
 # Checks for programs.
 #AC_PROG_CC
@@ -15,6 +16,15 @@ AM_PROG_CC_C_O
 AC_PATH_PROGS([DOX_PROG], [doxygen], missing)
 AM_CONDITIONAL([DOX_ENABLED], [test "x$DOX_PROG" != "xmissing"])
 
+
+have_swig=no
+AX_PKG_SWIG([2.0.0], [have_swig=yes])
+if test "$have_swig" = "yes"
+then
+	AM_PATH_PYTHON([2.5])
+	AX_SWIG_PYTHON([yes])
+fi
+AM_CONDITIONAL([BUILD_SWIG], [test "$have_swig" = "yes"])
 
 case $host in
   *-*-mingw32*)
@@ -51,6 +61,7 @@ AC_SUBST([AM_LDFLAGS])
 
 AC_CONFIG_FILES([Makefile
 		src/Makefile
+		src/swig/Makefile
 		docs/Makefile
 		libexword.pc])
 AC_OUTPUT

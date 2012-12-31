@@ -1,0 +1,25 @@
+%constant MODE_LIBRARY = EXWORD_MODE_LIBRARY;
+%constant MODE_TEXT    = EXWORD_MODE_TEXT;
+%constant MODE_CD      = EXWORD_MODE_CD;
+
+%constant REGION_JA = EXWORD_REGION_JA;
+%constant REGION_KR = EXWORD_REGION_KR;
+%constant REGION_IT = EXWORD_REGION_IT;
+%constant REGION_CN = EXWORD_REGION_CN;
+%constant REGION_IN = EXWORD_REGION_IN;
+%constant REGION_JA = EXWORD_REGION_JA;
+%constant REGION_DE = EXWORD_REGION_DE;
+%constant REGION_ES = EXWORD_REGION_ES;
+%constant REGION_FR = EXWORD_REGION_FR;
+%constant REGION_RU = EXWORD_REGION_RU;
+
+%constant CAPABILITY_ST  = CAP_ST;
+%constant CAPABILITY_SW  = CAP_SW;
+%constant CAPABILITY_T   = CAP_T;
+%constant CAPABILITY_P   = CAP_P;
+%constant CAPABILITY_F   = CAP_F;
+%constant CAPABILITY_C   = CAP_C;
+%constant CAPABILITY_C2  = CAP_C2;
+%constant CAPABILITY_C3  = CAP_C3;
+%constant CAPABILITY_EXT = CAP_EXT;
+
