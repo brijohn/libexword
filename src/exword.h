@@ -264,8 +264,8 @@ typedef struct {
  * @param filename name of file currently being transferred
  * @param transferred number of bytes transferred so far
  * @param length total length of file
- * @param user_data data pointer specified in \ref exword_register_transfer_callbacks
- * @see exword_register_transfer_callbacks
+ * @param user_data data pointer specified in \ref exword_register_xfer_callbacks
+ * @see exword_register_xfer_callbacks
  */
 typedef void (*file_cb)(char *filename, uint32_t transferred, uint32_t length, void *user_data);
 
@@ -294,7 +294,9 @@ void exword_deinit(exword_t *self);
 int exword_is_connected(exword_t *self);
 void exword_set_debug(exword_t *self, int level);
 int exword_get_debug(exword_t *self);
-void exword_register_transfer_callbacks(exword_t *self, file_cb get, file_cb put, void *userdata);
+void exword_register_xfer_callbacks(exword_t *self, file_cb get, void *get_data, file_cb put, void *put_data);
+void exword_register_xfer_get_callback(exword_t *self, file_cb callback, void *userdata);
+void exword_register_xfer_put_callback(exword_t *self, file_cb callback, void *userdata);
 void exword_register_disconnect_callback(exword_t *self, disconnect_cb disconnect, void *userdata);
 void exword_poll_disconnect(exword_t *self);
 

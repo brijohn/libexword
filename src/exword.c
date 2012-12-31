@@ -83,7 +83,8 @@ struct exword_t {
 
 	file_cb put_file_cb;
 	file_cb get_file_cb;
-	void * cb_userdata;
+	void * put_cb_userdata;
+	void * get_cb_userdata;
 	char * cb_filename;
 	uint32_t cb_filelength;
 	uint32_t cb_transferred;
@@ -312,7 +313,7 @@ static void exword_handle_callbacks(obex_t *self, obex_object_t *object, void *u
 			exword->put_file_cb(exword->cb_filename,
 					    exword->cb_transferred,
 					    exword->cb_filelength,
-					    exword->cb_userdata);
+					    exword->put_cb_userdata);
 		}
 	} else if (object->opcode == OBEX_CMD_GET && exword->get_file_cb) {
 		hdr = (struct obex_unicode_hdr *)(tx_buffer + 4);
@@ -342,7 +343,7 @@ static void exword_handle_callbacks(obex_t *self, obex_object_t *object, void *u
 			exword->get_file_cb(exword->cb_filename,
 					    exword->cb_transferred,
 					    exword->cb_filelength,
-					    exword->cb_userdata);
+					    exword->get_cb_userdata);
 		}
 	}
 }
@@ -515,14 +516,46 @@ int exword_get_debug(exword_t *self)
  * To remove a callback use NULL for function pointer
  * @param self device handle
  * @param get pointer to function for reporting download transfer progress
+ * @param get_data pointer passed to the get callback function
  * @param put pointer to function for reporting upload transfer progress
- * @param userdata pointer passed to callback functions
+ * @param put_data pointer passed to the put callback function
  */
-void exword_register_transfer_callbacks(exword_t *self, file_cb get, file_cb put, void *userdata)
+void exword_register_xfer_callbacks(exword_t *self, file_cb get, void *get_data, file_cb put, void *put_data)
 {
 	self->put_file_cb = put;
 	self->get_file_cb = get;
-	self->cb_userdata = userdata;
+	self->get_cb_userdata = get_data;
+	self->put_cb_userdata = put_data;
+}
+
+/** @ingroup misc
+ * Registers callback function for recieving files.
+ * This function will be invoked during file transfers after each
+ * chunk of the file is transferred.\n\n
+ * To remove a callback use NULL for function pointer
+ * @param self device handle
+ * @param callback pointer to function for reporting download transfer progress
+ * @param userdata pointer containing user data to be passed to the callback function
+ */
+void exword_register_xfer_get_callback(exword_t *self, file_cb callback, void *userdata)
+{
+	self->get_file_cb = callback;
+	self->get_cb_userdata = userdata;
+}
+
+/** @ingroup misc
+ * Registers callback function for sending files.
+ * This function will be invoked during file transfers after each
+ * chunk of the file is transferred.\n\n
+ * To remove a callback use NULL for function pointer
+ * @param self device handle
+ * @param callback pointer to function for reporting upload transfer progress
+ * @param userdata pointer containing user data to be passed to the callback function
+ */
+void exword_register_xfer_put_callback(exword_t *self, file_cb callback, void *userdata)
+{
+	self->put_file_cb = callback;
+	self->put_cb_userdata = userdata;
 }
 
 /** @ingroup device
