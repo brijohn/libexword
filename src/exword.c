@@ -768,7 +768,7 @@ int exword_sd_format(exword_t *self)
 
 /** @ingroup cmd
  * Sets the current path on device.
- * Pathname should start with either \\_INTERNAL_00 or \\_SD_00, which will
+ * Pathname should start with either "\\_INTERNAL_00" or "\\_SD_00", which will
  * access either internal memory or the sd card respectively.\n\n
  * Passing an empty string for path will allow you to get a list of storage mediums.
  * @param self device handle
