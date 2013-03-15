@@ -190,6 +190,17 @@ const char * get_data_dir()
 	return data_dir;
 }
 
+char * region_id2locale(int id)
+{
+	switch(id) {
+	case EXWORD_REGION_JA:
+		return "SHIFT_JIS";
+	case EXWORD_REGION_CN:
+		return "GB2312";
+	default:
+		return "UTF-8";
+	}
+}
 
 char * region_id2str(int id)
 {

@@ -401,7 +401,7 @@ int content_list_remote(struct state *s, char* root)
 	rsp = _read_admini(s->device, (char **)&info, &length);
 	if (rsp >= 0) {
 		for (i = 0; i < length / 180; i++) {
-			locale =  convert_to_locale("SHIFT_JIS", &locale, &len, info[i].name, strlen(info[i].name) + 1);
+			locale =  convert_to_locale(region_id2locale(s->region), &locale, &len, info[i].name, strlen(info[i].name) + 1);
 			printf("%d. %s (%s)\n", i, (locale == NULL ? info[i].name : locale), info[i].id);
 			free(locale);
 		}
@@ -435,7 +435,7 @@ int content_list_local(struct state *s)
 		else
 			name = _get_dict_name(path);
 		if (name) {
-			locale =  convert_to_locale("SHIFT_JIS", &locale, &len, name, strlen(name) + 1);
+			locale =  convert_to_locale(region_id2locale(s->region), &locale, &len, name, strlen(name) + 1);
 			printf("%d. %s (%s)\n", i, (locale == NULL ? name : locale), entry->d_name);
 			free(locale);
 			free(name);

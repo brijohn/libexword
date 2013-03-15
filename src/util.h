@@ -46,6 +46,7 @@ struct device_map * dev_list_search(struct list_head *head, char * dev);
 
 void * xmalloc(size_t n);
 void * xrealloc (void *ptr, size_t n);
+char * region_id2locale(int id);
 char * region_id2str(int id);
 char * mode_id2str(int id);
 int is_valid_sfn(char * filename);
