@@ -197,6 +197,8 @@ char * region_id2locale(int id)
 		return "SHIFT_JIS";
 	case EXWORD_REGION_CN:
 		return "GB2312";
+	case EXWORD_REGION_KR:
+		return "EUC-KR";
 	default:
 		return "UTF-8";
 	}
