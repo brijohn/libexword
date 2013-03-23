@@ -373,7 +373,7 @@ void capacity(struct state *s)
 		return;
 	rsp = exword_get_capacity(s->device, &cap);
 	if (rsp == EXWORD_SUCCESS)
-		printf("Capacity: %d / %d\n", cap.total, cap.free);
+		printf("Capacity: %u / %u\n", cap.total, cap.free);
 	else
 		printf("%s\n", exword_error_to_string(rsp));
 }
