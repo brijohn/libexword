@@ -75,6 +75,7 @@ struct command commands[] = {
 {"setpath", setpath, "setpath <path>\t\t- changes directory on dictionary\n",
 	"Changes to the the specified path.\n\n"
 	"<path> is in the form of <device>://<path>\n"
+	"Known devices are: drv0 crd0 crd1 (On dual card devices)\n"
 	"Example: drv0:/// - sets path to root of internal memory\n", 0x700},
 {"cd",  content, "cd <sub-function>\t- audio cd commands\n",
 	"This command allows manipulation of installed audio cds. It uses\n"
