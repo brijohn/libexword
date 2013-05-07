@@ -62,8 +62,8 @@ typedef struct {
 
 typedef struct {
 %immutable;
-	uint32_t total;
-	uint32_t free;
+	uint64_t total;
+	uint64_t free;
 %mutable;
 } exword_capacity_t;
 
