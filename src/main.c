@@ -21,6 +21,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <inttypes.h>
 #include <locale.h>
 #include <libgen.h>
 #include <readline/readline.h>
@@ -374,7 +375,7 @@ void capacity(struct state *s)
 		return;
 	rsp = exword_get_capacity(s->device, &cap);
 	if (rsp == EXWORD_SUCCESS)
-		printf("Capacity: %u / %u\n", cap.total, cap.free);
+		printf("Capacity: %"PRIu64" / %"PRIu64"\n", cap.total, cap.free);
 	else
 		printf("%s\n", exword_error_to_string(rsp));
 }

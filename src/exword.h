@@ -187,9 +187,9 @@ typedef struct {
 #pragma pack(1)
 typedef struct {
 	/** total space (in bytes) */
-	uint32_t total;
+	uint64_t total;
 	/** space available (in bytes) */
-	uint32_t free;
+	uint64_t free;
 } exword_capacity_t;
 #pragma pack()
 

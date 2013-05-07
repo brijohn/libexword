@@ -177,6 +177,36 @@ static char * convert (iconv_t cd,
 	return output;
 }
 
+uint64_t ntohll(uint64_t value)
+{
+	enum { TYP_INIT, TYP_SMLE, TYP_BIGE };
+
+	union
+	{
+		uint64_t ull;
+		uint8_t  c[8];
+	} x;
+
+	int8_t c = 0;
+	static int typ = TYP_INIT;
+
+	if (typ == TYP_INIT) {
+		x.ull = 0x01;
+		typ = (x.c[7] == 0x01) ? TYP_BIGE : TYP_SMLE;
+	}
+
+	if (typ == TYP_BIGE)
+		return value;
+
+	x.ull = value;
+	c = x.c[0]; x.c[0] = x.c[7]; x.c[7] = c;
+	c = x.c[1]; x.c[1] = x.c[6]; x.c[6] = c;
+	c = x.c[2]; x.c[2] = x.c[5]; x.c[5] = c;
+	c = x.c[3]; x.c[3] = x.c[4]; x.c[4] = c;
+
+	return x.ull;
+}
+
 /** @ingroup encoding
  * Convert string to current locale.
  * This function will convert a string from the specified format to
@@ -908,9 +938,13 @@ int exword_get_capacity(exword_t *self, exword_capacity_t *cap)
 	if ((rsp & ~OBEX_FINAL) == OBEX_RSP_SUCCESS) {
 		while (obex_object_getnextheader(self->obex_ctx, obj, &hi, &hv, &hv_size)) {
 			if (hi == OBEX_HDR_BODY) {
-				memcpy(cap, hv.bs, sizeof(exword_capacity_t));
-				cap->total = ntohl(cap->total);
-				cap->free = ntohl(cap->free);
+				if (hv_size == 24) {
+					cap->total = ntohll(*((uint64_t*)hv.bs + 1));
+					cap->free = ntohll(*((uint64_t*)hv.bs + 2));
+				} else {
+					cap->total = ntohl(*((uint32_t*)hv.bs));
+					cap->free = ntohl(*((uint32_t*)hv.bs + 1));
+				}
 				break;
 			}
 		}
