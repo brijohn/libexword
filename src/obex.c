@@ -388,7 +388,7 @@ int obex_object_receive(obex_t *self, obex_object_t *object)
 	if (object->opcode == OBEX_CMD_CONNECT) {
 		DEBUG(self, 2, "We expect a connect-rsp\n");
 		if (hdr->rsp == (OBEX_RSP_SUCCESS | OBEX_FINAL)) {
-			if (msg->data_size >= 9) {
+			if (msg->data_size >= 7) {
 				conn_hdr = (struct obex_connect_hdr *) ((msg->data) + 3);
 				version = conn_hdr->version;
 				mtu     = ntohs(conn_hdr->mtu);
@@ -575,6 +575,12 @@ obex_t * obex_init(uint16_t vid, uint16_t pid)
 	self->tx_msg = buf_new(self->mtu_tx_max);
 	if (self->tx_msg == NULL)
 		goto out_err;
+		
+  size = libusb_control_transfer(self->usb_dev,
+                     LIBUSB_REQUEST_TYPE_VENDOR + LIBUSB_RECIPIENT_INTERFACE,
+                     0x0000001, 0x0000000, 0x0000000, NULL, 0x0000000, 1000);
+  if (size < 0)
+    goto out_err;
 
 	return self;
 
