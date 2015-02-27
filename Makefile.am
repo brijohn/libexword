@@ -27,6 +27,7 @@ DISTCLEANFILES = src/Makefile.in \
                  depcomp \
                  COPYING \
                  missing \
+                 ar-lib \
                  py-compile \
                  config.guess \
                  config.sub \
