@@ -8,6 +8,8 @@ AC_CONFIG_SRCDIR([src/exword.c])
 AC_CONFIG_HEADERS([config.h])
 AC_CONFIG_MACRO_DIR([m4])
 
+AC_SUBST([LIBRARY_VERSION], [2:0:0])
+
 # Checks for programs.
 #AC_PROG_CC
 m4_ifdef([AM_PROG_AR], [AM_PROG_AR])
