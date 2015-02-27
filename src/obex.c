@@ -201,7 +201,7 @@ static int obex_object_receive_body(obex_object_t *object, buf_t *msg, uint8_t h
 	DEBUG(object->context, 4, "This is a body-header. Len=%d\n", len);
 
 	if (len > msg->data_size) {
-		DEBUG(object->context, 1, "Header %d to big. HSize=%d Buffer=%d\n",
+		DEBUG(object->context, 1, "Header %d to big. HSize=%d Buffer=%zd\n",
 				hi, len, msg->data_size);
 		return -1;
 	}
@@ -268,7 +268,7 @@ static int obex_object_send(obex_t *self, obex_object_t *object)
 
 	/* Add nonheader-data first if any (SETPATH, CONNECT)*/
 	if (object->tx_nonhdr_data) {
-		DEBUG(self, 4, "Adding %d bytes of non-headerdata\n", object->tx_nonhdr_data->data_size);
+		DEBUG(self, 4, "Adding %zd bytes of non-headerdata\n", object->tx_nonhdr_data->data_size);
 		buf_insert_end(txmsg, object->tx_nonhdr_data->data, object->tx_nonhdr_data->data_size);
 
 		buf_free(object->tx_nonhdr_data);
@@ -333,7 +333,7 @@ static int obex_object_send(obex_t *self, obex_object_t *object)
 	hdr->len = htons((uint16_t)txmsg->data_size - 1);
 
 	DUMPBUFFER(self, "Tx", txmsg);
-	DEBUG(self, 1, "len = %d bytes\n", txmsg->data_size);
+	DEBUG(self, 1, "len = %zd bytes\n", txmsg->data_size);
 
 	actual = obex_bulk_write(self, txmsg);
 	if (actual < 0) {
@@ -370,7 +370,7 @@ int obex_object_receive(obex_t *self, obex_object_t *object)
 
 	hdr = (struct obex_rsp_hdr *) msg->data;
 	/* New data has been inserted at the end of message */
-	DEBUG(self, 4, "Got %d bytes msg len=%d\n", ret, msg->data_size);
+	DEBUG(self, 4, "Got %d bytes msg len=%zd\n", ret, msg->data_size);
 
 	/*
 	 * Make sure that the buffer we have, actually has the specified
@@ -380,7 +380,7 @@ int obex_object_receive(obex_t *self, obex_object_t *object)
 	length = ntohs(hdr->len);
 	/* Make sure we have a whole packet. Should not happen due to reading the entire MTU in*/
 	if (length > msg->data_size) {
-		DEBUG(self, 3, "Need more data, size=%d, len=%d!\n", length, msg->data_size);
+		DEBUG(self, 3, "Need more data, size=%d, len=%zd!\n", length, msg->data_size);
 		return msg->data_size;
 	}
 	DUMPBUFFER(self, "Rx", msg);
@@ -422,7 +422,7 @@ int obex_object_receive(obex_t *self, obex_object_t *object)
 		if (!object->rx_nonhdr_data)
 			return -1;
 		buf_insert_end(object->rx_nonhdr_data, msg->data, object->headeroffset);
-		DEBUG(self, 4, "Command has %d bytes non-headerdata\n", object->rx_nonhdr_data->data_size);
+		DEBUG(self, 4, "Command has %zd bytes non-headerdata\n", object->rx_nonhdr_data->data_size);
 		buf_remove_begin(msg, object->headeroffset);
 		object->headeroffset = 0;
 	}
@@ -468,7 +468,7 @@ int obex_object_receive(obex_t *self, obex_object_t *object)
 
 		/* Make sure that the msg is big enough for header */
 		if (len > msg->data_size) {
-			DEBUG(self, 1, "Header %d to big. HSize=%d Buffer=%d\n",
+			DEBUG(self, 1, "Header %d to big. HSize=%d Buffer=%zd\n",
 					hi, len, msg->data_size);
 			source = NULL;
 			err = -1;
