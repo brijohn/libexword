@@ -4,6 +4,7 @@ dictionary               model           sub-model    extended     usb id
 ---------------------------------------------------------------------------
 Dataplus 2 XD-ST4800     gy131,ON,0100   gy271                     07cf:6101
 Dataplus 2 XD-ST9200     gy131,ON,0102   gy274                     07cf:6101
+Dataplus 2 XD-ST6200     gy131,ON,0100   gy276                     07cf:6101
 Dataplus 2 XD-ST7200     gy131,ON,0210   gy282                     07cf:6101
 Dataplus 3 EW-H6000      gy131,ON,0101   gy331                     07cf:6101
 Dataplus 3 XD-SW4800     gy131,ON,0101   gy350                     07cf:6101
