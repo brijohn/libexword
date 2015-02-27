@@ -29,6 +29,7 @@ DISTCLEANFILES = src/Makefile.in \
                  missing \
                  ar-lib \
                  py-compile \
+                 config.h.in \
                  config.guess \
                  config.sub \
                  ltmain.sh
