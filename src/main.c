@@ -503,7 +503,7 @@ void dict(struct state *s)
 	char val;
 	char root[15];
 	char authkey[41];
-	char *subfunc, *id, *user;
+	char *subfunc, *id, *user = NULL;
 	if (!s->connected)
 		return;
 	if (s->mode != OPEN_LIBRARY) {
@@ -534,11 +534,22 @@ void dict(struct state *s)
 			}
 		} else if (strcmp(subfunc, "auth") == 0) {
 			if (peek_arg(&(s->cmd_list)) == NULL) {
-				printf("No username specified.\n");
+				int len;
+				char *buffer = NULL;
+				int rsp = exword_get_file(s->device, "user.inf", &buffer, &len);
+				if (rsp == 0x20) {
+					user = xmalloc(len+1);
+					sscanf(buffer, "%s\n", user);
+					free(buffer);
+				} else {
+					printf("No username specified.\n");
+				}
 			} else {
 				user = xmalloc(strlen(peek_arg(&(s->cmd_list)) + 1));
 				strcpy(user, peek_arg(&(s->cmd_list)));
 				dequeue_arg(&(s->cmd_list));
+			}
+			if (user != NULL) {
 				if (peek_arg(&(s->cmd_list)) == NULL) {
 					if (dict_auth(s->device, user, NULL)) {
 						s->authenticated = 1;
@@ -575,6 +586,7 @@ void dict(struct state *s)
 						}
 					}
 				}
+				free(user);
 			}
 		} else if (strcmp(subfunc, "decrypt") == 0 ||
 			   strcmp(subfunc, "remove")  == 0 ||
