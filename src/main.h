@@ -21,7 +21,8 @@
 #ifndef _MAIN_H
 #define _MAIN_H
 
-#include "util.h"
+#include "exword.h"
+#include "list.h"
 
 struct state {
 	exword_t *device;

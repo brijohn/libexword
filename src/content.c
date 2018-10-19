@@ -1,6 +1,6 @@
 /* content.c - code for removing/installing and dumping content (add-ons/cd audio)
  *
- * Copyright (C) 2010, 2011 - Brian Johnson <brijohn@gmail.com>
+ * Copyright (C) 2010-2018 - Brian Johnson <brijohn@gmail.com>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -26,6 +26,7 @@
 #include <dirent.h>
 #include <sys/stat.h>
 #include <fcntl.h>
+#include <errno.h>
 
 #include "main.h"
 #include "util.h"

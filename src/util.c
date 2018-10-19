@@ -1,6 +1,6 @@
 /* util.c - several utility functions used in exword
  *
- * Copyright (C) 2010, 2011 - Brian Johnson <brijohn@gmail.com>
+ * Copyright (C) 2010-2018 - Brian Johnson <brijohn@gmail.com>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -27,7 +27,9 @@
 #include <limits.h>
 #include <stdarg.h>
 #include <errno.h>
+#include <unistd.h>
 
+#include "exword.h"
 #include "util.h"
 
 #if defined(__MINGW32__)

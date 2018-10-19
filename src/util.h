@@ -1,6 +1,6 @@
 /* util.h - several utility functions used in exword
  *
- * Copyright (C) 2010, 2011 - Brian Johnson <brijohn@gmail.com>
+ * Copyright (C) 2010-2018 - Brian Johnson <brijohn@gmail.com>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -29,9 +29,6 @@
 # define PATH_SEP "/"
 #endif
 
-#include <errno.h>
-
-#include "exword.h"
 #include "list.h"
 
 struct device_map {

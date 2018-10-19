@@ -3,7 +3,7 @@
  * Most of this code was borrowed and adopted from OpenOBEX to work with
  * the casio EX-word dictionaries
  *
- * Copyright (C) 2010 - Brian Johnson <brijohn@gmail.com>
+ * Copyright (C) 2010-2018 - Brian Johnson <brijohn@gmail.com>
  * Copyright (c) 1999, 2000 Pontus Fuchs, All Rights Reserved.
  * Copyright (c) 1999, 2000 Dag Brattli, All Rights Reserved.
  *
@@ -23,6 +23,11 @@
  *
  *
  */
+
+#include <arpa/inet.h>
+#include <stdlib.h>
+#include <string.h>
+
 #include "obex.h"
 
 static int obex_bulk_read(obex_t *self, buf_t *msg)

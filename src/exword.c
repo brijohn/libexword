@@ -1,6 +1,6 @@
 /* libexword - library for transffering files to Casio-EX-Word dictionaries
  *
- * Copyright (C) 2010 - Brian Johnson <brijohn@gmail.com>
+ * Copyright (C) 2010-2018 - Brian Johnson <brijohn@gmail.com>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -19,10 +19,13 @@
  *
  */
 
+#include <arpa/inet.h>
 #include <stdlib.h>
 #include <stdio.h>
+#include <string.h>
 #include <iconv.h>
 #include <errno.h>
+
 #include "obex.h"
 #include "exword.h"
 
