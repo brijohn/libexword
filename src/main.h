@@ -1,6 +1,6 @@
 /* exword - program for transfering files to Casio-EX-Word dictionaries
  *
- * Copyright (C) 2010, 2011 - Brian Johnson <brijohn@gmail.com>
+ * Copyright (C) 2010-2018 - Brian Johnson <brijohn@gmail.com>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -64,6 +64,7 @@ int content_list_local(struct state *s);
 int content_remove(struct state *s, char *root, char *id);
 int content_decrypt(struct state *s, char *root, char *id);
 int content_install(struct state *s, char *root, char *id);
+int content_reset(struct state *s, char *user);
 int content_auth(struct state *s, char *user, char *auth);
 
 #endif
