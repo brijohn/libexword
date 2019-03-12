@@ -19,9 +19,9 @@ Commands
 
 connect [mode] [region]
 	This command connects to an attached EX-word dictionary. It
-	accepts two optional parameters the first specifies the connection
-	mode and be bee either library, text, or cd. The second one is the
-	region of your dictionary and is a two letter country code.
+	accepts two optional parameters: the first specifies the connection
+	mode, and can be either library, text, or cd. The second one is the
+	region of your dictionary and is a two-letter country code.
 
 	The default values for mode and region are library and ja.
 
@@ -46,7 +46,7 @@ delete <filename>
 
 send <filename>
 	This command will upload a file to the connected device. <filename> should
-	specifiy the fullpath to the file on your local filesystem.
+	specify the fullpath to the file on your local filesystem.
 
 get <filename>
 	This command will download a file from the connected device. <filename> should
@@ -57,8 +57,8 @@ setpath <path>
 	following format: <sd|mem://path>.
 
 set <option> [value]
-	This command sets various configutation options. If not value is given for the
-	specified option its current value is printed out. 
+	This command sets various configuration options. If no value is given for the
+	specified option, its current value is printed out. 
 
 	Options:
 		debug - This option sets the debug level (0-5)
@@ -77,7 +77,7 @@ dict <sub-function>
 
 		auth <username> [key]
 			This peforms authentication and must be called before any other subfunction
-			except for list and reset. If key is not specified it will try to find the
+			except for list and reset. If key is not specified, it will try to find the
 			username in the users.dat file.
 
 		list [local|remote]
