@@ -495,7 +495,7 @@ void content(struct state *s)
 	char *ptr;
 	char *root;
 	char authkey[41];
-	char *subfunc, *id, *user;
+	char *subfunc, *id, *user = NULL;
 	if (!s->connected)
 		return;
 	ptr = strchr(s->cwd + 1, '\\');
@@ -530,11 +530,22 @@ void content(struct state *s)
 			}
 		} else if (strcmp(subfunc, "auth") == 0) {
 			if (peek_arg(&(s->cmd_list)) == NULL) {
-				printf("No username specified.\n");
+				int len;
+				char *buffer = NULL;
+				int rsp = exword_get_file(s->device, "user.inf", &buffer, &len);
+				if (rsp == EXWORD_SUCCESS) {
+					user = xmalloc(len+1);
+					sscanf(buffer, "%s\n", user);
+					free(buffer);
+				} else {
+					printf("No username specified.\n");
+				}
 			} else {
 				user = xmalloc(strlen(peek_arg(&(s->cmd_list)) + 1));
 				strcpy(user, peek_arg(&(s->cmd_list)));
 				dequeue_arg(&(s->cmd_list));
+			}
+			if (user != NULL) {
 				if (peek_arg(&(s->cmd_list)) == NULL) {
 					if (content_auth(s, user, NULL)) {
 						s->authenticated = 1;
